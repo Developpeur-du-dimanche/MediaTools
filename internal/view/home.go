@@ -81,7 +81,7 @@ func (h HomeView) Content() fyne.CanvasObject {
 	c.Resize((h.window.Canvas().Size()))
 
 	layout := container.NewAdaptiveGrid(2, c, container.NewAppTabs(
-		container.NewTabItem("Filter", components.NewFilterComponent(&h.listFile).Content()),
+		container.NewTabItem("Filter", components.NewFilterComponent(&h.listFile, &h.window).Content()),
 		container.NewTabItem("Track Remover", components.NewTrackRemoverComponent().Content()),
 	))
 

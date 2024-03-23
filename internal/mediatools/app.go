@@ -2,6 +2,7 @@ package mediatools
 
 import (
 	"fmt"
+	"os"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -35,6 +36,8 @@ func Run() {
 
 	a := app.New()
 
+	a.SetIcon(loadResourceFromPath("./Icon.svg"))
+
 	application := NewApplication(a)
 
 	homeView := view.NewHomeView(a)
@@ -43,4 +46,11 @@ func Run() {
 
 	homeView.ShowAndRun()
 
+}
+
+func loadResourceFromPath(path string) fyne.Resource {
+	if _, err := os.Stat(path); err != nil {
+		return nil
+	}
+	return fyne.NewStaticResource(path, []byte{})
 }

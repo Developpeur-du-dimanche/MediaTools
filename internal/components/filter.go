@@ -1,8 +1,12 @@
 package components
 
 import (
+	"errors"
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -10,13 +14,15 @@ type FilterComponent struct {
 	choices   *[]*ConditionalWidget
 	container *fyne.Container
 	fileList  *[]string
+	window    *fyne.Window
 }
 
-func NewFilterComponent(fileList *[]string) *FilterComponent {
+func NewFilterComponent(fileList *[]string, window *fyne.Window) *FilterComponent {
 	return &FilterComponent{
 		choices:   &[]*ConditionalWidget{},
 		container: container.NewVBox(),
 		fileList:  fileList,
+		window:    window,
 	}
 }
 
@@ -35,9 +41,7 @@ func (f *FilterComponent) Content() fyne.CanvasObject {
 		}
 	})
 
-	filterButton := widget.NewButton("Filter", func() {
-		//TODO
-	})
+	filterButton := widget.NewButton("Filter", f.Filter)
 
 	return container.NewBorder(
 		container.NewHBox(
@@ -51,4 +55,12 @@ func (f *FilterComponent) Content() fyne.CanvasObject {
 			f.container,
 		),
 	)
+}
+
+func (f *FilterComponent) Filter() {
+	if len(*f.fileList) == 0 || len(*f.choices) == 0 {
+		fmt.Println("No file selected or no filter added", len(*f.fileList), len(*f.choices))
+		dialog.ShowError(errors.New("No file selected or no filter added"), *f.window)
+		return
+	}
 }
