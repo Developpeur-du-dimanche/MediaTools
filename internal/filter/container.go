@@ -3,6 +3,8 @@ package filter
 import (
 	"strings"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/widget"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
@@ -41,6 +43,14 @@ func (c *ContainerFilter) New() ConditionContract {
 	}
 }
 
-func (c *ContainerFilter) SetCondition(condition ConditionString) {
-	c.condition = condition
+func (c *ContainerFilter) SetCondition(condition string) {
+	c.condition = FromString(condition)
+}
+
+func (c *ContainerFilter) GetEntry() fyne.Widget {
+	entry := widget.NewSelect([]string{"mkv", "mp4"}, func(s string) {
+		c.value = s
+
+	})
+	return entry
 }

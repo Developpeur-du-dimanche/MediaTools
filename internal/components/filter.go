@@ -2,7 +2,6 @@ package components
 
 import (
 	"errors"
-	"fmt"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -59,8 +58,7 @@ func (f *FilterComponent) Content() fyne.CanvasObject {
 
 func (f *FilterComponent) Filter() {
 	if len(*f.fileList) == 0 || len(*f.choices) == 0 {
-		fmt.Println("No file selected or no filter added", len(*f.fileList), len(*f.choices))
-		dialog.ShowError(errors.New("No file selected or no filter added"), *f.window)
+		dialog.ShowError(errors.New("no file selected or no filter added"), *f.window)
 		return
 	}
 }

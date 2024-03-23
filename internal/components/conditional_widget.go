@@ -16,6 +16,13 @@ type ConditionalWidget struct {
 
 var conditions = []filter.ConditionContract{
 	filter.NewContainerFilter(),
+	filter.NewAudioLanguageFilter(),
+	filter.NewBitrateFilter(),
+	filter.NewSubtitleForcedFilter(),
+	filter.NewSubtitleLanguageFilter(),
+	filter.NewSubtitleTitleFilter(),
+	filter.NewSubtitleCodecFilter(),
+	filter.NewVideoTitleFilter(),
 }
 
 var choices = make([]string, len(conditions))
@@ -43,14 +50,16 @@ func NewConditionalWidget() *ConditionalWidget {
 			if cond.Name() == s {
 				c.choice = cond.New()
 				choiceWidget := widget.NewSelect(cond.GetPossibleConditions(), func(s string) {
-					c.choice.SetCondition(filter.ConditionString(s))
+					c.choice.SetCondition(s)
 				})
 				c.container.Objects[1] = choiceWidget
-				c.container.Objects[2] = widget.NewEntry()
+				c.container.Objects[2] = c.choice.GetEntry()
 				break
 			}
 		}
 	}
+
+	c.ExtendBaseWidget(c)
 
 	return c
 
