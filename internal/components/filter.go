@@ -16,6 +16,7 @@ func NewFilterComponent(fileList *[]string) *FilterComponent {
 	return &FilterComponent{
 		choices:   &[]*ConditionalWidget{},
 		container: container.NewVBox(),
+		fileList:  fileList,
 	}
 }
 
