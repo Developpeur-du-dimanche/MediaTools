@@ -9,12 +9,13 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components"
+	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 	"github.com/kbinani/screenshot"
 )
 
 type HomeView struct {
 	c        chan string
-	listFile []string
+	listFile *list.List
 	window   fyne.Window
 	list     *widget.List
 }
@@ -22,7 +23,7 @@ type HomeView struct {
 func NewHomeView(app fyne.App) View {
 
 	home := &HomeView{
-		listFile: []string{},
+		listFile: list.NewList(),
 		c:        make(chan string),
 	}
 
@@ -31,13 +32,13 @@ func NewHomeView(app fyne.App) View {
 	home.window.Resize(fyne.NewSize(float32(screen.Dx()/2), float32(screen.Dy()/2)))
 	home.list = widget.NewList(
 		func() int {
-			return len(home.listFile)
+			return home.listFile.GetLength()
 		},
 		func() fyne.CanvasObject {
 			return widget.NewLabel("template")
 		},
 		func(i widget.ListItemID, item fyne.CanvasObject) {
-			item.(*widget.Label).SetText(home.listFile[i])
+			item.(*widget.Label).SetText(home.listFile.GetItem(i))
 		},
 	)
 
@@ -46,10 +47,12 @@ func NewHomeView(app fyne.App) View {
 	home.window.SetContent(home.Content())
 	home.window.SetMainMenu(home.GetMainMenu())
 
+	fmt.Printf("listFile address: %p\n", &home.listFile)
+
 	go func() {
 		for file := range home.c {
 			fmt.Println(file)
-			home.listFile = append(home.listFile, file)
+			home.listFile.AddItem(file)
 			home.list.Refresh()
 		}
 	}()
@@ -68,7 +71,7 @@ func (h HomeView) Content() fyne.CanvasObject {
 				h.OpenFileDialog().Show()
 			}),
 			widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
-				h.listFile = []string{}
+				h.listFile.Clear()
 				h.list.Refresh()
 			}),
 		),
@@ -80,8 +83,11 @@ func (h HomeView) Content() fyne.CanvasObject {
 
 	c.Resize((h.window.Canvas().Size()))
 
+	// print address of listFile
+	fmt.Printf("listFile address: %p\n", &h.listFile)
+
 	layout := container.NewAdaptiveGrid(2, c, container.NewAppTabs(
-		container.NewTabItem("Filter", components.NewFilterComponent(&h.listFile, &h.window).Content()),
+		container.NewTabItem("Filter", components.NewFilterComponent(&h.window, h.listFile).Content()),
 		container.NewTabItem("Track Remover", components.NewTrackRemoverComponent().Content()),
 	))
 
@@ -114,7 +120,7 @@ func (h *HomeView) OpenFileDialog() *dialog.FileDialog {
 		if uc == nil {
 			return
 		}
-		h.c <- uc.URI().String()
+		h.c <- uc.URI().Path()
 	}, *h.GetWindow())
 	size := (*h.GetWindow()).Canvas().Size()
 	dialog.Resize(fyne.NewSize(size.Width-150, size.Height-150))
