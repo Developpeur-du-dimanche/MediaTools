@@ -47,7 +47,7 @@ func (f *FilterComponent) Content() fyne.CanvasObject {
 		filterButton,
 		nil,
 		nil,
-		container.NewVBox(
+		container.NewVScroll(
 			f.container,
 		),
 	)
