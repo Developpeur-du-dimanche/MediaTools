@@ -1,12 +1,11 @@
 package view
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -14,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components"
+	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 	"github.com/kbinani/screenshot"
 	"gopkg.in/vansante/go-ffprobe.v2"
@@ -21,7 +21,7 @@ import (
 
 type HomeView struct {
 	c        chan string
-	listFile *list.List
+	listFile *list.List[*fileinfo.FileInfo]
 	window   fyne.Window
 	list     *widget.List
 }
@@ -31,7 +31,7 @@ var acceptedExtensions = "mp4,avi,mkv,mov,flv,wmv,webm,mpg,mpeg,mp3,wav,flac,ogg
 func NewHomeView(app fyne.App) View {
 
 	home := &HomeView{
-		listFile: list.NewList(),
+		listFile: list.NewList[*fileinfo.FileInfo](),
 		c:        make(chan string),
 	}
 
@@ -52,9 +52,16 @@ func NewHomeView(app fyne.App) View {
 				home.list.Refresh()
 			}
 			item.(*fyne.Container).Objects[1].(*widget.Button).OnTapped = func() {
-				dialog.ShowInformation("Info", home.getFileInformation(home.listFile.GetItem(i)), *home.GetWindow())
+				tree := FileInfoToTree(home.listFile.GetItem(i))
+				if tree == nil {
+					dialog.ShowError(errors.New("error while getting file information"), *home.GetWindow())
+					return
+				}
+				d := dialog.NewCustom("Info", "Close", tree, *home.GetWindow())
+				d.Resize(fyne.NewSize(400, 400))
+				d.Show()
 			}
-			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(home.listFile.GetItem(i))
+			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(home.listFile.GetItem(i).Path)
 		},
 	)
 
@@ -67,7 +74,12 @@ func NewHomeView(app fyne.App) View {
 
 	go func() {
 		for file := range home.c {
-			home.listFile.AddItem(file)
+			f, err := fileinfo.NewFileInfo(file)
+			if err != nil {
+				dialog.ShowError(err, *home.GetWindow())
+				continue
+			}
+			home.listFile.AddItem(f)
 			home.list.Refresh()
 		}
 	}()
@@ -198,17 +210,149 @@ func (h *HomeView) OpenFolderDialog() *dialog.FileDialog {
 	return dialog
 }
 
-func (h *HomeView) getFileInformation(file string) string {
-	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelFn()
+func FileInfoToTree(file *fileinfo.FileInfo) *widget.Tree {
+	tree := widget.NewTree(
+		func(id widget.TreeNodeID) []widget.TreeNodeID {
+			switch id {
+			case "":
+				return []widget.TreeNodeID{"streams", "format"}
+			case "streams":
+				return []widget.TreeNodeID{"Video", "Audio", "Subtitle"}
+			case "Video":
+				// one node per video stream
+				nodes := []widget.TreeNodeID{}
+				for i := 0; i < len(*file.VideoStreams); i++ {
+					nodes = append(nodes, "Video "+fmt.Sprint(i))
+				}
+				return nodes
+			case "Audio":
+				// one node per audio stream
+				nodes := []widget.TreeNodeID{}
+				for i := 0; i < len(*file.AudioStreams); i++ {
+					nodes = append(nodes, "Audio "+fmt.Sprint(i))
+				}
+				return nodes
+			case "Subtitle":
+				// one node per subtitle stream
+				nodes := []widget.TreeNodeID{}
+				for i := 0; i < len(*file.SubtitleStreams); i++ {
+					nodes = append(nodes, "Subtitle "+fmt.Sprint(i))
+				}
+				return nodes
+			case "format":
+				return []widget.TreeNodeID{"format_name", "duration", "size"}
+			}
 
-	data, err := ffprobe.ProbeURL(ctx, file)
+			if strings.HasPrefix(id, "Video") {
+				nodes := []widget.TreeNodeID{}
+				for i := 0; i < len(*file.VideoStreams); i++ {
+					nodes = append(nodes, "v"+fmt.Sprint(i)+"_codec_name", "v"+fmt.Sprint(i)+"_width", "v"+fmt.Sprint(i)+"_height", "v"+fmt.Sprint(i)+"_bit_rate")
+				}
+				return nodes
+			}
 
-	if err != nil {
-		dialog.ShowError(err, *h.GetWindow())
-		return "error while probing file: " + file + ", " + err.Error()
-	}
+			if strings.HasPrefix(id, "Audio") {
+				nodes := []widget.TreeNodeID{}
+				for i := 0; i < len(*file.AudioStreams); i++ {
+					nodes = append(nodes, "a"+fmt.Sprint(i)+"_codec_name", "a"+fmt.Sprint(i)+"_channels", "a"+fmt.Sprint(i)+"_bit_rate", "a"+fmt.Sprint(i)+"_title")
+				}
+				return nodes
+			}
 
-	return fmt.Sprintf("file: %s\nformat: %s\nsize: %s\nbitrate: %s\n", file, data.Format.FormatName, data.Format.Size, data.Format.BitRate)
+			if strings.HasPrefix(id, "Subtitle") {
+				nodes := []widget.TreeNodeID{}
+				for i := 0; i < len(*file.SubtitleStreams); i++ {
+					nodes = append(nodes, "s"+fmt.Sprint(i)+"_codec_name", "s"+fmt.Sprint(i)+"_title")
+				}
+				return nodes
+			}
 
+			return []string{}
+		},
+		func(id widget.TreeNodeID) bool {
+			if id == "" || id == "format" || id == "streams" || id == "Video" || id == "Audio" || id == "Subtitle" {
+				return true
+			}
+
+			for i := 0; i < len(*file.SubtitleStreams); i++ {
+				if id == "Video "+fmt.Sprint(i) {
+					return true
+				}
+			}
+
+			for i := 0; i < len(*file.AudioStreams); i++ {
+				if id == "Audio "+fmt.Sprint(i) {
+					return true
+				}
+			}
+
+			for i := 0; i < len(*file.SubtitleStreams); i++ {
+				if id == "Subtitle "+fmt.Sprint(i) {
+					return true
+				}
+			}
+
+			return false
+
+		},
+		func(b bool) fyne.CanvasObject {
+			return widget.NewLabel("template")
+		},
+		func(id widget.TreeNodeID, isBranch bool, co fyne.CanvasObject) {
+			if isBranch {
+				co.(*widget.Label).SetText(id)
+				return
+			}
+
+			switch id {
+			case "format_name":
+				co.(*widget.Label).SetText("Format name: " + file.Info.Format.FormatName)
+				return
+			case "duration":
+				co.(*widget.Label).SetText("Duration: " + fmt.Sprint(file.Info.Format.Duration()))
+				return
+			case "size":
+				co.(*widget.Label).SetText("Size: " + file.Info.Format.Size)
+				return
+			}
+
+			var stream *ffprobe.Stream
+			i := int(id[1] - '0')
+
+			switch id[0] {
+			case 'v':
+				stream = &(*file.VideoStreams)[i]
+			case 'a':
+				stream = &(*file.AudioStreams)[i]
+			case 's':
+				stream = &(*file.SubtitleStreams)[i]
+			}
+
+			request := strings.TrimPrefix(id, string(id[0])+fmt.Sprint(i)+"_")
+
+			switch request {
+			case "codec_name":
+				co.(*widget.Label).SetText("Codec name: " + stream.CodecName)
+				return
+			case "width":
+				co.(*widget.Label).SetText("Width: " + fmt.Sprint(stream.Width))
+				return
+			case "height":
+				co.(*widget.Label).SetText("Height: " + fmt.Sprint(stream.Height))
+				return
+			case "bit_rate":
+				co.(*widget.Label).SetText("Bit rate: " + fmt.Sprint(stream.BitRate))
+				return
+			case "channels":
+				co.(*widget.Label).SetText("Channels: " + fmt.Sprint(stream.Channels))
+				return
+			case "title":
+				co.(*widget.Label).SetText("Title: " + stream.Tags.Title)
+				return
+			}
+
+		},
+	)
+
+	return tree
 }

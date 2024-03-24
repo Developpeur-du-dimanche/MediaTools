@@ -1,32 +1,32 @@
 package components
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
-	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
 type FilterComponent struct {
-	choices   *[]*ConditionalWidget
-	container *fyne.Container
-	fileList  *list.List
-	window    *fyne.Window
+	choices      *[]*ConditionalWidget
+	container    *fyne.Container
+	fileList     *list.List[*fileinfo.FileInfo]
+	window       *fyne.Window
+	filterButton *widget.Button
 }
 
-func NewFilterComponent(window *fyne.Window, fileList *list.List) *FilterComponent {
+func NewFilterComponent(window *fyne.Window, fileList *list.List[*fileinfo.FileInfo]) *FilterComponent {
 	return &FilterComponent{
-		choices:   &[]*ConditionalWidget{},
-		container: container.NewVBox(),
-		fileList:  fileList,
-		window:    window,
+		choices:      &[]*ConditionalWidget{},
+		container:    container.NewVBox(),
+		fileList:     fileList,
+		window:       window,
+		filterButton: widget.NewButton("Filter", nil),
 	}
 }
 
@@ -45,14 +45,14 @@ func (f *FilterComponent) Content() fyne.CanvasObject {
 		}
 	})
 
-	filterButton := widget.NewButton("Filter", f.Filter)
+	f.filterButton.OnTapped = f.Filter
 
 	return container.NewBorder(
 		container.NewHBox(
 			addFilterButton,
 			removeFilterButton,
 		),
-		filterButton,
+		f.filterButton,
 		nil,
 		nil,
 		container.NewVScroll(
@@ -62,38 +62,32 @@ func (f *FilterComponent) Content() fyne.CanvasObject {
 }
 
 func (f *FilterComponent) Filter() {
+	f.filterButton.Disable()
 
 	if f.fileList.GetLength() == 0 || len(*f.choices) == 0 {
 		fmt.Printf("no file selected or no filter added, len %d\n", f.fileList.GetLength())
 		dialog.ShowError(errors.New("no file selected or no filter added"), *f.window)
+		f.filterButton.Enable()
 		return
 	}
 
-	output := list.NewList()
+	output := list.NewList[fileinfo.FileInfo]()
 	treatmentOf := widget.NewLabel("file is currently being treated, please wait...")
 	cd := dialog.NewCustomWithoutButtons("Please wait", treatmentOf, *f.window)
 	cd.Show()
 	for _, file := range f.fileList.GetItems() {
-		treatmentOf.SetText("file is currently being treated: " + file + " please wait...")
-		ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancelFn()
+		treatmentOf.SetText("file is currently being treated: " + file.Path + " please wait...")
 
-		data, err := ffprobe.ProbeURL(ctx, file)
+		data := file.Info
 		isValid := false
 		for _, c := range *f.choices {
-
-			if err != nil {
-				fmt.Printf("error while probing file %s: %s\n", file, err)
-				dialog.ShowError(err, *f.window)
-				return
-			}
 
 			if c.choice.Check(data) {
 				isValid = true
 			}
 		}
 		if isValid {
-			output.AddItem(file)
+			output.AddItem(*file)
 		}
 	}
 
@@ -112,7 +106,7 @@ func (f *FilterComponent) Filter() {
 			return widget.NewLabel("template")
 		},
 		func(i widget.ListItemID, item fyne.CanvasObject) {
-			item.(*widget.Label).SetText(output.GetItem(i))
+			item.(*widget.Label).SetText(output.GetItem(i).Path)
 		},
 	)
 
@@ -127,5 +121,7 @@ func (f *FilterComponent) Filter() {
 	))
 
 	w.Show()
+
+	f.filterButton.Enable()
 
 }
