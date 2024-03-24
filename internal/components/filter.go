@@ -70,11 +70,16 @@ func (f *FilterComponent) Filter() {
 	}
 
 	output := list.NewList()
+	treatmentOf := widget.NewLabel("file is currently being treated, please wait...")
+	cd := dialog.NewCustomWithoutButtons("Please wait", treatmentOf, *f.window)
+	cd.Show()
 	for _, file := range f.fileList.GetItems() {
+		treatmentOf.SetText("file is currently being treated: " + file + " please wait...")
 		ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelFn()
 
 		data, err := ffprobe.ProbeURL(ctx, file)
+		isValid := false
 		for _, c := range *f.choices {
 
 			if err != nil {
@@ -84,11 +89,15 @@ func (f *FilterComponent) Filter() {
 			}
 
 			if c.choice.Check(data) {
-				output.AddItem(file)
-				break
+				isValid = true
 			}
 		}
+		if isValid {
+			output.AddItem(file)
+		}
 	}
+
+	cd.Hide()
 
 	// create new window to display filtered files
 	w := fyne.CurrentApp().NewWindow("Filtered files")

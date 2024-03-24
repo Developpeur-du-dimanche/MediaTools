@@ -2,6 +2,9 @@ package view
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -19,6 +22,8 @@ type HomeView struct {
 	window   fyne.Window
 	list     *widget.List
 }
+
+var acceptedExtensions = "mp4,avi,mkv,mov,flv,wmv,webm,mpg,mpeg,mp3,wav,flac,ogg"
 
 func NewHomeView(app fyne.App) View {
 
@@ -145,9 +150,38 @@ func (h *HomeView) OpenFolderDialog() *dialog.FileDialog {
 			return
 		}
 
+		scanFolder := widget.NewLabel("Scanning folder: " + lu.Path())
+		dialog := dialog.NewCustomWithoutButtons("Scanning folder", scanFolder, *h.GetWindow())
+		dialog.Show()
+
 		for _, file := range list {
-			h.c <- file.Path()
+			if i, err := os.Stat(file.Path()); err == nil && i.IsDir() {
+				filepath.WalkDir(file.Path(), func(path string, d os.DirEntry, err error) error {
+
+					scanFolder.SetText("Scanning folder: " + path)
+
+					if err != nil {
+						return err
+					}
+
+					if filepath.Ext(path) == "" {
+						return nil
+					}
+
+					if strings.Contains(acceptedExtensions, file.Extension()) {
+						h.c <- path
+					}
+					return nil
+				})
+			} else {
+				scanFolder.SetText("Scanning folder: " + file.Path())
+				if strings.Contains(acceptedExtensions, file.Extension()) {
+					h.c <- file.Path()
+				}
+			}
+
 		}
+		dialog.Hide()
 	}, *h.GetWindow())
 	size := (*h.GetWindow()).Canvas().Size()
 	dialog.Resize(fyne.NewSize(size.Width-150, size.Height-150))
