@@ -1,10 +1,12 @@
 package view
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -14,6 +16,7 @@ import (
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 	"github.com/kbinani/screenshot"
+	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
 type HomeView struct {
@@ -40,10 +43,18 @@ func NewHomeView(app fyne.App) View {
 			return home.listFile.GetLength()
 		},
 		func() fyne.CanvasObject {
-			return widget.NewLabel("template")
+			return container.NewHBox(widget.NewButtonWithIcon("", theme.DeleteIcon(), nil), widget.NewButtonWithIcon("", theme.InfoIcon(), nil), widget.NewLabel(""))
 		},
 		func(i widget.ListItemID, item fyne.CanvasObject) {
-			item.(*widget.Label).SetText(home.listFile.GetItem(i))
+
+			item.(*fyne.Container).Objects[0].(*widget.Button).OnTapped = func() {
+				home.listFile.RemoveItem(home.listFile.GetItem(i))
+				home.list.Refresh()
+			}
+			item.(*fyne.Container).Objects[1].(*widget.Button).OnTapped = func() {
+				dialog.ShowInformation("Info", home.getFileInformation(home.listFile.GetItem(i)), *home.GetWindow())
+			}
+			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(home.listFile.GetItem(i))
 		},
 	)
 
@@ -56,7 +67,6 @@ func NewHomeView(app fyne.App) View {
 
 	go func() {
 		for file := range home.c {
-			fmt.Println(file)
 			home.listFile.AddItem(file)
 			home.list.Refresh()
 		}
@@ -186,4 +196,19 @@ func (h *HomeView) OpenFolderDialog() *dialog.FileDialog {
 	size := (*h.GetWindow()).Canvas().Size()
 	dialog.Resize(fyne.NewSize(size.Width-150, size.Height-150))
 	return dialog
+}
+
+func (h *HomeView) getFileInformation(file string) string {
+	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFn()
+
+	data, err := ffprobe.ProbeURL(ctx, file)
+
+	if err != nil {
+		dialog.ShowError(err, *h.GetWindow())
+		return "error while probing file: " + file + ", " + err.Error()
+	}
+
+	return fmt.Sprintf("file: %s\nformat: %s\nsize: %s\nbitrate: %s\n", file, data.Format.FormatName, data.Format.Size, data.Format.BitRate)
+
 }
