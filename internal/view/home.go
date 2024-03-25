@@ -219,62 +219,33 @@ func FileInfoToTree(file *fileinfo.FileInfo) *widget.Tree {
 			case "streams":
 				return []widget.TreeNodeID{"Video", "Audio", "Subtitle"}
 			case "Video":
-				// one node per video stream
-				nodes := []widget.TreeNodeID{}
-				for i := 0; i < len(*file.VideoStreams); i++ {
-					nodes = append(nodes, "Video "+fmt.Sprint(i))
-				}
-				return nodes
+				return generateStreamNodes(file.VideoStreams, "Video")
 			case "Audio":
-				// one node per audio stream
-				nodes := []widget.TreeNodeID{}
-				for i := 0; i < len(*file.AudioStreams); i++ {
-					nodes = append(nodes, "Audio "+fmt.Sprint(i))
-				}
-				return nodes
+				return generateStreamNodes(file.AudioStreams, "Audio")
 			case "Subtitle":
-				// one node per subtitle stream
-				nodes := []widget.TreeNodeID{}
-				for i := 0; i < len(*file.SubtitleStreams); i++ {
-					nodes = append(nodes, "Subtitle "+fmt.Sprint(i))
-				}
-				return nodes
+				return generateStreamNodes(file.SubtitleStreams, "Subtitle")
 			case "format":
 				return []widget.TreeNodeID{"format_name", "duration", "size"}
 			}
 
-			if strings.HasPrefix(id, "Video") {
-				nodes := []widget.TreeNodeID{}
-				for i := 0; i < len(*file.VideoStreams); i++ {
-					nodes = append(nodes, "v"+fmt.Sprint(i)+"_codec_name", "v"+fmt.Sprint(i)+"_width", "v"+fmt.Sprint(i)+"_height", "v"+fmt.Sprint(i)+"_bit_rate")
-				}
-				return nodes
-			}
-
-			if strings.HasPrefix(id, "Audio") {
-				nodes := []widget.TreeNodeID{}
-				for i := 0; i < len(*file.AudioStreams); i++ {
-					nodes = append(nodes, "a"+fmt.Sprint(i)+"_codec_name", "a"+fmt.Sprint(i)+"_channels", "a"+fmt.Sprint(i)+"_bit_rate", "a"+fmt.Sprint(i)+"_title")
-				}
-				return nodes
-			}
-
-			if strings.HasPrefix(id, "Subtitle") {
-				nodes := []widget.TreeNodeID{}
-				for i := 0; i < len(*file.SubtitleStreams); i++ {
-					nodes = append(nodes, "s"+fmt.Sprint(i)+"_codec_name", "s"+fmt.Sprint(i)+"_title")
-				}
-				return nodes
+			switch {
+			case strings.HasPrefix(id, "Video"):
+				return generateStreamDetailNodes(id, "v")
+			case strings.HasPrefix(id, "Audio"):
+				return generateStreamDetailNodes(id, "a")
+			case strings.HasPrefix(id, "Subtitle"):
+				return generateStreamDetailNodes(id, "s")
 			}
 
 			return []string{}
 		},
 		func(id widget.TreeNodeID) bool {
-			if id == "" || id == "format" || id == "streams" || id == "Video" || id == "Audio" || id == "Subtitle" {
+			switch id {
+			case "", "format", "streams", "Video", "Audio", "Subtitle":
 				return true
 			}
 
-			for i := 0; i < len(*file.SubtitleStreams); i++ {
+			for i := 0; i < len(*file.VideoStreams); i++ {
 				if id == "Video "+fmt.Sprint(i) {
 					return true
 				}
@@ -293,7 +264,6 @@ func FileInfoToTree(file *fileinfo.FileInfo) *widget.Tree {
 			}
 
 			return false
-
 		},
 		func(b bool) fyne.CanvasObject {
 			return widget.NewLabel("template")
@@ -307,52 +277,67 @@ func FileInfoToTree(file *fileinfo.FileInfo) *widget.Tree {
 			switch id {
 			case "format_name":
 				co.(*widget.Label).SetText("Format name: " + file.Info.Format.FormatName)
-				return
 			case "duration":
 				co.(*widget.Label).SetText("Duration: " + fmt.Sprint(file.Info.Format.Duration()))
-				return
 			case "size":
 				co.(*widget.Label).SetText("Size: " + file.Info.Format.Size)
-				return
+			default:
+				stream := getStreamByID(file, id)
+				if stream != nil {
+					setStreamDetailText(co.(*widget.Label), stream, id)
+				}
 			}
-
-			var stream *ffprobe.Stream
-			i := int(id[1] - '0')
-
-			switch id[0] {
-			case 'v':
-				stream = &(*file.VideoStreams)[i]
-			case 'a':
-				stream = &(*file.AudioStreams)[i]
-			case 's':
-				stream = &(*file.SubtitleStreams)[i]
-			}
-
-			request := strings.TrimPrefix(id, string(id[0])+fmt.Sprint(i)+"_")
-
-			switch request {
-			case "codec_name":
-				co.(*widget.Label).SetText("Codec name: " + stream.CodecName)
-				return
-			case "width":
-				co.(*widget.Label).SetText("Width: " + fmt.Sprint(stream.Width))
-				return
-			case "height":
-				co.(*widget.Label).SetText("Height: " + fmt.Sprint(stream.Height))
-				return
-			case "bit_rate":
-				co.(*widget.Label).SetText("Bit rate: " + fmt.Sprint(stream.BitRate))
-				return
-			case "channels":
-				co.(*widget.Label).SetText("Channels: " + fmt.Sprint(stream.Channels))
-				return
-			case "title":
-				co.(*widget.Label).SetText("Title: " + stream.Tags.Title)
-				return
-			}
-
 		},
 	)
 
 	return tree
+}
+
+func generateStreamNodes(streams *[]ffprobe.Stream, prefix string) []widget.TreeNodeID {
+	nodes := []widget.TreeNodeID{}
+	for i := 0; i < len(*streams); i++ {
+		str := prefix + " " + fmt.Sprint(i)
+		nodes = append(nodes, str)
+	}
+	return nodes
+}
+
+func generateStreamDetailNodes(id string, prefix string) []widget.TreeNodeID {
+	i := strings.Split(id, " ")[1]
+	return []widget.TreeNodeID{
+		prefix + fmt.Sprint(i) + "_codec_name",
+		prefix + fmt.Sprint(i) + "_width",
+		prefix + fmt.Sprint(i) + "_height",
+		prefix + fmt.Sprint(i) + "_bit_rate",
+	}
+}
+
+func getStreamByID(file *fileinfo.FileInfo, id widget.TreeNodeID) *ffprobe.Stream {
+	i := int(id[1] - '0')
+	switch id[0] {
+	case 'v':
+		return &(*file.VideoStreams)[i]
+	case 'a':
+		return &(*file.AudioStreams)[i]
+	case 's':
+		return &(*file.SubtitleStreams)[i]
+	}
+	return nil
+}
+
+func setStreamDetailText(label *widget.Label, stream *ffprobe.Stream, id widget.TreeNodeID) {
+	switch true {
+	case strings.HasSuffix(id, "codec_name"):
+		label.SetText("Codec name: " + stream.CodecName)
+	case strings.HasSuffix(id, "width"):
+		label.SetText("Width: " + fmt.Sprint(stream.Width))
+	case strings.HasSuffix(id, "height"):
+		label.SetText("Height: " + fmt.Sprint(stream.Height))
+	case strings.HasSuffix(id, "bit_rate"):
+		label.SetText("Bit rate: " + fmt.Sprint(stream.BitRate))
+	case strings.HasSuffix(id, "channels"):
+		label.SetText("Channels: " + fmt.Sprint(stream.Channels))
+	case strings.HasSuffix(id, "title"):
+		label.SetText("Title: " + stream.Tags.Title)
+	}
 }
