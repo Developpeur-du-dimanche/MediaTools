@@ -1,7 +1,6 @@
 package mediatools
 
 import (
-	"fmt"
 	"os"
 
 	"fyne.io/fyne/v2"
@@ -31,8 +30,6 @@ func Run() {
 		ID:   "com.github.developpeur-du-dimanche.mediatools",
 		Name: "MediaTools",
 	}*/
-
-	fmt.Printf("Starting MediaTools\n")
 
 	a := app.New()
 

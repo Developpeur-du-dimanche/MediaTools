@@ -2,7 +2,6 @@ package components
 
 import (
 	"errors"
-	"fmt"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -65,7 +64,6 @@ func (f *FilterComponent) Filter() {
 	f.filterButton.Disable()
 
 	if f.fileList.GetLength() == 0 || len(*f.choices) == 0 {
-		fmt.Printf("no file selected or no filter added, len %d\n", f.fileList.GetLength())
 		dialog.ShowError(errors.New("no file selected or no filter added"), *f.window)
 		f.filterButton.Enable()
 		return

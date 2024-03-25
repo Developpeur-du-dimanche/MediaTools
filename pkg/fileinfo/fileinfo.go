@@ -2,6 +2,7 @@ package fileinfo
 
 import (
 	"context"
+	"path/filepath"
 	"time"
 
 	"gopkg.in/vansante/go-ffprobe.v2"
@@ -13,6 +14,8 @@ type FileInfoContract interface {
 
 type FileInfo struct {
 	Path            string
+	Folder          string
+	Filename        string
 	VideoStreams    *[]ffprobe.Stream
 	AudioStreams    *[]ffprobe.Stream
 	SubtitleStreams *[]ffprobe.Stream
@@ -46,6 +49,8 @@ func NewFileInfo(path string) (*FileInfo, error) {
 
 	return &FileInfo{
 		Path:            path,
+		Filename:        getFilename(path),
+		Folder:          getFolder(path),
 		Info:            data,
 		VideoStreams:    &videoStreams,
 		AudioStreams:    &audioStreams,
@@ -53,7 +58,17 @@ func NewFileInfo(path string) (*FileInfo, error) {
 	}, nil
 }
 
-func (f FileInfo) Equals(other FileInfoContract) bool {
+func getFilename(path string) string {
+	// extract filename from path
+	return filepath.Base(path)
+}
+
+func getFolder(path string) string {
+	// extract folder from path
+	return filepath.Dir(path)
+}
+
+func (f *FileInfo) Equals(other FileInfoContract) bool {
 	otherFileInfo, ok := other.(*FileInfo)
 	if !ok {
 		return false
