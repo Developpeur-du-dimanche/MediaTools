@@ -1,6 +1,7 @@
 package view
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +20,7 @@ type HomeView struct {
 	list   *components.FileListComponent
 }
 
-var acceptedExtensions = "mp4,avi,mkv,mov,flv,wmv,webm,mpg,mpeg,mp3,wav,flac,ogg"
+var acceptedExtensions = []string{".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".webm", ".mpg", ".mpeg", ".wav", ".flac", ".ogg"}
 
 func NewHomeView(app fyne.App) View {
 
@@ -139,14 +140,15 @@ func (h *HomeView) OpenFolderDialog() *dialog.FileDialog {
 						return nil
 					}
 
-					if strings.Contains(acceptedExtensions, file.Extension()) {
+					if isValidExtension(filepath.Ext(path)) {
 						h.list.AddFile(path)
 					}
 					return nil
 				})
 			} else {
 				scanFolder.SetText("Scanning folder: " + file.Path())
-				if strings.Contains(acceptedExtensions, file.Extension()) {
+				fmt.Printf("ext: %s\n", file.Extension())
+				if isValidExtension(strings.ToLower(file.Extension())) {
 					h.list.AddFile(file.Path())
 				}
 			}
@@ -157,4 +159,13 @@ func (h *HomeView) OpenFolderDialog() *dialog.FileDialog {
 	size := (*h.GetWindow()).Canvas().Size()
 	dialog.Resize(fyne.NewSize(size.Width-150, size.Height-150))
 	return dialog
+}
+
+func isValidExtension(extension string) bool {
+	for _, ext := range acceptedExtensions {
+		if ext == extension {
+			return true
+		}
+	}
+	return false
 }
