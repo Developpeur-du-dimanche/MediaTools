@@ -1,27 +1,32 @@
-package filter
+package globalfilter
 
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/filter"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
 type SubtitleForcedFilter struct {
-	Filter
+	GlobalFilter
 }
 
 func NewSubtitleForcedFilter() *SubtitleForcedFilter {
 	return &SubtitleForcedFilter{}
 }
 
-func (c *SubtitleForcedFilter) Check(data *ffprobe.ProbeData) bool {
+func (c *SubtitleForcedFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
 	for _, s := range data.Streams {
 		// if is subtitle stream and forced matches
-		if s.CodecType == "subtitle" && c.CheckInt(s.Disposition.Forced) {
+		if s.CodecType == "subtitle" && c.Filter.CheckInt(s.Disposition.Forced) {
 			return true
 		}
 	}
 	return false
+}
+
+func (c *SubtitleForcedFilter) CheckStream(data *ffprobe.Stream) bool {
+	return data.CodecType == "subtitle" && data.Disposition.Forced == 1
 }
 
 func (c *SubtitleForcedFilter) Name() string {
@@ -32,16 +37,18 @@ func (c *SubtitleForcedFilter) GetPossibleConditions() []string {
 	return []string{"equals", "not equals"}
 }
 
-func (c *SubtitleForcedFilter) New() ConditionContract {
+func (c *SubtitleForcedFilter) New() filter.ConditionContract {
 	return &SubtitleForcedFilter{
-		Filter{
-			Value: c.Value,
+		GlobalFilter{
+			Filter: filter.Filter{
+				Value: c.Value,
+			},
 		},
 	}
 }
 
 func (c *SubtitleForcedFilter) SetCondition(condition string) {
-	c.Condition = FromString(condition)
+	c.Condition = filter.FromString(condition)
 }
 
 func (c *SubtitleForcedFilter) GetEntry() fyne.Widget {
@@ -58,12 +65,4 @@ func (c *SubtitleForcedFilter) GetEntry() fyne.Widget {
 
 func (c *SubtitleForcedFilter) SetValue(value string) {
 	c.Value = value
-}
-
-func (c *SubtitleForcedFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
-	return true
-}
-
-func (c *SubtitleForcedFilter) CheckStream(data *ffprobe.Stream) bool {
-	return false
 }

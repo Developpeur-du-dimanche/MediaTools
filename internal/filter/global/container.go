@@ -1,22 +1,23 @@
-package filter
+package globalfilter
 
 import (
 	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/filter"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
 type ContainerFilter struct {
-	Filter
+	GlobalFilter
 }
 
-func NewContainerFilter() ConditionContract {
+func NewContainerFilter() filter.ConditionContract {
 	return &ContainerFilter{}
 }
 
-func (c *ContainerFilter) Check(data *ffprobe.ProbeData) bool {
+func (c *ContainerFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
 	if data == nil || data.Format == nil || data.Format.Filename == "" {
 		return false
 	}
@@ -24,7 +25,11 @@ func (c *ContainerFilter) Check(data *ffprobe.ProbeData) bool {
 	// get extension
 	extension := data.Format.Filename[strings.LastIndex(data.Format.Filename, ".")+1:]
 
-	return c.CheckString(extension)
+	return c.Filter.CheckString(extension)
+}
+
+func (c *ContainerFilter) CheckStream(data *ffprobe.Stream) bool {
+	return false
 }
 
 func (c *ContainerFilter) GetPossibleConditions() []string {
@@ -35,16 +40,18 @@ func (c *ContainerFilter) Name() string {
 	return "Container"
 }
 
-func (c *ContainerFilter) New() ConditionContract {
+func (c *ContainerFilter) New() filter.ConditionContract {
 	return &ContainerFilter{
-		Filter{
-			Value: c.Value,
+		GlobalFilter{
+			Filter: filter.Filter{
+				Value: c.Value,
+			},
 		},
 	}
 }
 
 func (c *ContainerFilter) SetCondition(condition string) {
-	c.Condition = FromString(condition)
+	c.Condition = filter.FromString(condition)
 }
 
 func (c *ContainerFilter) GetEntry() fyne.Widget {
@@ -53,12 +60,4 @@ func (c *ContainerFilter) GetEntry() fyne.Widget {
 
 	})
 	return entry
-}
-
-func (c *ContainerFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
-	return true
-}
-
-func (c *ContainerFilter) CheckStream(data *ffprobe.Stream) bool {
-	return false
 }

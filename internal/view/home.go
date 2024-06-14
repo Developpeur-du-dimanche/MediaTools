@@ -34,7 +34,6 @@ func NewHomeView(app fyne.App) View {
 	list := components.NewFileListComponent(&home.window)
 
 	home.list = list
-	//home.list.Resize(fyne.NewSize(float32(screen.Dx()/4), float32(screen.Dy()/2)))
 
 	home.window.SetContent(home.Content())
 	home.window.SetMainMenu(home.GetMainMenu())
@@ -65,7 +64,7 @@ func (h HomeView) Content() fyne.CanvasObject {
 	c.Resize((h.window.Canvas().Size()))
 	layout := container.NewAdaptiveGrid(2, c, container.NewAppTabs(
 		container.NewTabItem("Filter", components.NewFilterComponent(&h.window, h.list.GetFiles()).Content()),
-		container.NewTabItem("Track Remover", components.NewTrackRemoverComponent().Content()),
+		container.NewTabItem("Track Remover", components.NewTrackRemoverComponent(&h.window, h.list.GetFiles()).Content()),
 	))
 
 	return layout

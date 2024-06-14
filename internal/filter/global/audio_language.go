@@ -1,27 +1,32 @@
-package filter
+package globalfilter
 
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/filter"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
 type AudioLanguageFilter struct {
-	Filter
+	GlobalFilter
 }
 
 func NewAudioLanguageFilter() *AudioLanguageFilter {
 	return &AudioLanguageFilter{}
 }
 
-func (c *AudioLanguageFilter) Check(data *ffprobe.ProbeData) bool {
+func (c *AudioLanguageFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
 	for _, s := range data.Streams {
 		// if is audio stream and language matches
-		if s.CodecType == "audio" && c.CheckString(s.Tags.Language) {
+		if s.CodecType == "audio" && c.Filter.CheckString(s.Tags.Language) {
 			return true
 		}
 	}
 	return false
+}
+
+func (c *AudioLanguageFilter) CheckStream(data *ffprobe.Stream) bool {
+	return data.CodecType == "audio" && data.Tags.Language != "" && c.CheckString(data.Tags.Language)
 }
 
 func (c *AudioLanguageFilter) Name() string {
@@ -32,17 +37,18 @@ func (c *AudioLanguageFilter) GetPossibleConditions() []string {
 	return []string{"equals", "contains", "not equals"}
 }
 
-func (c *AudioLanguageFilter) New() ConditionContract {
+func (c *AudioLanguageFilter) New() filter.ConditionContract {
 	return &AudioLanguageFilter{
-		Filter{
-			Value: c.Value,
+		GlobalFilter{
+			Filter: filter.Filter{
+				Value: c.Value,
+			},
 		},
 	}
-
 }
 
 func (c *AudioLanguageFilter) SetCondition(condition string) {
-	c.Condition = FromString(condition)
+	c.Condition = filter.FromString(condition)
 }
 
 func (c *AudioLanguageFilter) GetEntry() fyne.Widget {
@@ -51,12 +57,4 @@ func (c *AudioLanguageFilter) GetEntry() fyne.Widget {
 		c.Value = s
 	}
 	return entry
-}
-
-func (c *AudioLanguageFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
-	return true
-}
-
-func (c *AudioLanguageFilter) CheckStream(data *ffprobe.Stream) bool {
-	return false
 }

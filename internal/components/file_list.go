@@ -12,18 +12,20 @@ import (
 
 type FileListComponent struct {
 	widget.BaseWidget
-	files *list.List[*fileinfo.FileInfo]
-	list  *widget.List
-	c     chan string
+	files       *list.List[*fileinfo.FileInfo]
+	list        *widget.List
+	c           chan string
+	OnFileClick func(file *fileinfo.FileInfo)
 }
 
 func NewFileListComponent(parent *fyne.Window) *FileListComponent {
 	files := list.NewList[*fileinfo.FileInfo]()
 	list := new(widget.List)
 	c := &FileListComponent{
-		files: files,
-		list:  list,
-		c:     make(chan string),
+		files:       files,
+		list:        list,
+		c:           make(chan string),
+		OnFileClick: func(file *fileinfo.FileInfo) {},
 	}
 
 	c.list = widget.NewList(
@@ -47,6 +49,10 @@ func NewFileListComponent(parent *fyne.Window) *FileListComponent {
 			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(files.GetItem(i).Filename)
 		},
 	)
+
+	c.list.OnSelected = func(id widget.ListItemID) {
+		c.OnFileClick(files.GetItem(id))
+	}
 
 	c.ExtendBaseWidget(c)
 

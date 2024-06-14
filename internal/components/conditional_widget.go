@@ -14,17 +14,6 @@ type ConditionalWidget struct {
 	container *fyne.Container
 }
 
-var conditions = []filter.ConditionContract{
-	filter.NewContainerFilter(),
-	filter.NewAudioLanguageFilter(),
-	filter.NewBitrateFilter(),
-	filter.NewSubtitleForcedFilter(),
-	filter.NewSubtitleLanguageFilter(),
-	filter.NewSubtitleTitleFilter(),
-	filter.NewSubtitleCodecFilter(),
-	filter.NewVideoTitleFilter(),
-}
-
 var choices = make([]string, len(conditions))
 
 func NewConditionalWidget() *ConditionalWidget {

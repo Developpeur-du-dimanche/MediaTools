@@ -7,9 +7,22 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/filter"
+	globalfilter "github.com/Developpeur-du-dimanche/MediaTools/internal/filter/global"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 )
+
+var conditions = []filter.ConditionContract{
+	globalfilter.NewContainerFilter(),
+	globalfilter.NewAudioLanguageFilter(),
+	globalfilter.NewBitrateFilter(),
+	globalfilter.NewSubtitleForcedFilter(),
+	globalfilter.NewSubtitleLanguageFilter(),
+	globalfilter.NewSubtitleTitleFilter(),
+	globalfilter.NewSubtitleCodecFilter(),
+	globalfilter.NewVideoTitleFilter(),
+}
 
 type FilterComponent struct {
 	choices      *[]*ConditionalWidget
@@ -80,7 +93,7 @@ func (f *FilterComponent) Filter() {
 		isValid := false
 		for _, c := range *f.choices {
 
-			if c.choice.Check(data) {
+			if c.choice.CheckGlobal(data) {
 				isValid = true
 			}
 		}
