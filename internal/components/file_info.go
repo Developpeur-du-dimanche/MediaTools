@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/info"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
@@ -63,11 +64,11 @@ func (f *FileInfoComponent) childUIDs(id widget.TreeNodeID) []widget.TreeNodeID 
 
 	switch {
 	case strings.HasPrefix(id, "Video"):
-		return generateStreamDetailNodes(id, "v")
+		return info.NewVideoInfo(id).GetNodes()
 	case strings.HasPrefix(id, "Audio"):
-		return generateStreamDetailNodes(id, "a")
+		return info.NewAudioInfo(id).GetNodes()
 	case strings.HasPrefix(id, "Subtitle"):
-		return generateStreamDetailNodes(id, "s")
+		return info.NewSubtitleInfo(id).GetNodes()
 	}
 
 	return []string{}
@@ -122,7 +123,14 @@ func (f *FileInfoComponent) update(id widget.TreeNodeID, isBranch bool, co fyne.
 	default:
 		stream := getStreamByID(file, id)
 		if stream != nil {
-			setStreamDetailText(co.(*widget.Label), stream, id)
+			switch id[0] {
+			case 'v':
+				info.NewVideoInfo(id).From(co.(*widget.Label), stream, id)
+			case 'a':
+				info.NewAudioInfo(id).From(co.(*widget.Label), stream, id)
+			case 's':
+				info.NewSubtitleInfo(id).From(co.(*widget.Label), stream, id)
+			}
 		}
 	}
 }
@@ -136,16 +144,6 @@ func generateStreamNodes(streams *[]ffprobe.Stream, prefix string) []widget.Tree
 	return nodes
 }
 
-func generateStreamDetailNodes(id string, prefix string) []widget.TreeNodeID {
-	i := strings.Split(id, " ")[1]
-	return []widget.TreeNodeID{
-		prefix + fmt.Sprint(i) + "_codec_name",
-		prefix + fmt.Sprint(i) + "_width",
-		prefix + fmt.Sprint(i) + "_height",
-		prefix + fmt.Sprint(i) + "_bit_rate",
-	}
-}
-
 func getStreamByID(file *fileinfo.FileInfo, id widget.TreeNodeID) *ffprobe.Stream {
 	i := int(id[1] - '0')
 	switch id[0] {
@@ -157,21 +155,4 @@ func getStreamByID(file *fileinfo.FileInfo, id widget.TreeNodeID) *ffprobe.Strea
 		return &(*file.SubtitleStreams)[i]
 	}
 	return nil
-}
-
-func setStreamDetailText(label *widget.Label, stream *ffprobe.Stream, id widget.TreeNodeID) {
-	switch true {
-	case strings.HasSuffix(id, "codec_name"):
-		label.SetText("Codec name: " + stream.CodecName)
-	case strings.HasSuffix(id, "width"):
-		label.SetText("Width: " + fmt.Sprint(stream.Width))
-	case strings.HasSuffix(id, "height"):
-		label.SetText("Height: " + fmt.Sprint(stream.Height))
-	case strings.HasSuffix(id, "bit_rate"):
-		label.SetText("Bit rate: " + fmt.Sprint(stream.BitRate))
-	case strings.HasSuffix(id, "channels"):
-		label.SetText("Channels: " + fmt.Sprint(stream.Channels))
-	case strings.HasSuffix(id, "title"):
-		label.SetText("Title: " + stream.Tags.Title)
-	}
 }
