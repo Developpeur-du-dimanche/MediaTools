@@ -1,11 +1,13 @@
 package components
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -33,13 +35,14 @@ type MergeFiles struct {
 	outputFile  string
 	window      fyne.Window
 	procesPopup *widget.PopUp
-	processText string
+	processText *widget.Label
 }
 
 func NewMergeFilesComponent(window *fyne.Window, fileList *list.List[*fileinfo.FileInfo]) *MergeFiles {
 	return &MergeFiles{
-		listFiles: fileList,
-		window:    *window,
+		listFiles:   fileList,
+		window:      *window,
+		processText: widget.NewLabel(""),
 	}
 }
 
@@ -92,24 +95,18 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 		listFiles,
 	)
 
-	f.processText = ""
-
-	processEntry := widget.NewEntry()
-	processEntry.SetText(f.processText)
-
-	f.procesPopup = widget.NewModalPopUp(processEntry, f.window.Canvas())
+	f.procesPopup = widget.NewModalPopUp(f.processText, f.window.Canvas())
 
 	return content
 }
 
 func (f *MergeFiles) Merge() {
-	f.processText = "Merging files..."
+	f.processText.SetText("Merging files... 0%")
 	f.procesPopup.Show()
 
 	defer f.procesPopup.Hide()
 
 	var finalInputFiles []string
-	// sort input files by position
 	sort.SliceStable(f.inputFiles, func(i, j int) bool {
 		return f.inputFiles[i].position < f.inputFiles[j].position
 	})
@@ -126,54 +123,47 @@ func (f *MergeFiles) Merge() {
 	err := f.MergeFiles(finalInputFiles, f.outputFile)
 	if err != nil {
 		fmt.Printf("Error: %s\n", err)
-
 		widget.NewLabel(err.Error())
 	}
-
 }
 
 func (f *MergeFiles) MergeFiles(files []string, output string) error {
-
 	// create temp txt file
 	txtFile, err := os.Create(output + ".txt")
-
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-
 		return err
 	}
+	defer txtFile.Close()
 
 	for _, file := range files {
-		_, err := txtFile.WriteString(fmt.Sprintf("file %s\n", file))
+		_, err := txtFile.WriteString(fmt.Sprintf("file '%s'\n", strings.ReplaceAll(file, "\\", "/")))
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
-
 			return err
 		}
 	}
 
-	// run ffmpeg command
-	cmd := fmt.Sprintf("ffmpeg -f concat -safe 0 -i %s -c copy %s", txtFile.Name(), output)
-	err = runCommand(cmd)
+	// replace all '\' by '/'
+	output = strings.ReplaceAll(output, "\\", "/")
+
+	// run ffmpeg command with progress
+	cmd := fmt.Sprintf("-progress pipe:1 -f concat -safe 0 -i %s -c copy %s",
+		strings.ReplaceAll(txtFile.Name(), "\\", "/"),
+		output)
+	err = f.runCommandWithProgress(cmd)
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
 		return err
 	}
-
-	txtFile.Close()
 
 	// remove temp txt file
 	err = os.Remove(txtFile.Name())
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-
 		return err
 	}
 
 	return nil
 }
 
-func runCommand(cmd string) error {
+func (f *MergeFiles) runCommandWithProgress(cmd string) error {
 	path, err := exec.LookPath("FFMPEG")
 	if err != nil {
 		return err
@@ -184,11 +174,79 @@ func runCommand(cmd string) error {
 	}
 
 	command := exec.Command(path, strings.Split(cmd, " ")...)
-	command.Stdout = os.Stdout
-	err = command.Run()
+
+	// Créer un pipe pour la sortie standard
+	stdout, err := command.StdoutPipe()
 	if err != nil {
 		return err
 	}
 
-	return nil
+	// Créer un pipe pour la sortie d'erreur
+	stderr, err := command.StderrPipe()
+	if err != nil {
+		return err
+	}
+
+	// Démarrer la commande
+	if err := command.Start(); err != nil {
+		return err
+	}
+
+	// Scanner pour lire la progression
+	scanner := bufio.NewScanner(stdout)
+
+	// Variables pour suivre la progression
+	var duration float64
+	var currentTime float64
+
+	// Lire la sortie d'erreur dans une goroutine séparée
+	go func() {
+		errScanner := bufio.NewScanner(stderr)
+		for errScanner.Scan() {
+			line := errScanner.Text()
+			// Extraire la durée totale
+			if strings.Contains(line, "Duration:") {
+				durationStr := strings.Split(strings.Split(line, "Duration: ")[1], ",")[0]
+				duration = parseFFmpegTime(durationStr)
+			}
+		}
+	}()
+
+	// Lire la progression
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "out_time_us=") {
+			timeStr := strings.Split(line, "=")[1]
+			currentTime = float64(parseInt64(timeStr)) / 1000000 // convertir microsecondes en secondes
+
+			if duration > 0 {
+				progress := (currentTime / duration) * 100
+				// Mettre à jour l'interface utilisateur avec le pourcentage
+				f.processText.SetText(fmt.Sprintf("Merging files... %.0f%%", progress))
+			}
+		}
+	}
+
+	// Attendre que la commande se termine
+	return command.Wait()
+}
+
+// Fonction utilitaire pour parser le temps FFmpeg (format HH:MM:SS.ms)
+func parseFFmpegTime(timeStr string) float64 {
+	parts := strings.Split(timeStr, ":")
+	if len(parts) != 3 {
+		return 0
+	}
+
+	hours, _ := strconv.ParseFloat(parts[0], 64)
+	minutes, _ := strconv.ParseFloat(parts[1], 64)
+	seconds, _ := strconv.ParseFloat(parts[2], 64)
+
+	return hours*3600 + minutes*60 + seconds
+}
+
+// Fonction utilitaire pour parser les entiers 64 bits
+func parseInt64(s string) int64 {
+	i, _ := strconv.ParseInt(s, 10, 64)
+	return i
 }

@@ -4,7 +4,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/widgets"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 )
@@ -61,7 +60,7 @@ func (f *TrackRemoverComponent) Content() fyne.CanvasObject {
 			if b {
 				return widget.NewLabel("")
 			}
-			return widgets.NewTrackFilter("template")
+			return NewTrackFilter("template")
 		}, func(id widget.TreeNodeID, b bool, co fyne.CanvasObject) {
 			if b {
 				co.(*widget.Label).SetText(id)
@@ -70,31 +69,31 @@ func (f *TrackRemoverComponent) Content() fyne.CanvasObject {
 
 			switch id {
 			case "v_id":
-				co.(*widgets.TrackFilter).SetText("ID")
+				co.(*TrackFilter).SetText("ID")
 				//co.(*widgets.TrackFilter).NumberWidget()
 			case "v_title":
-				co.(*widgets.TrackFilter).SetText("Title")
+				co.(*TrackFilter).SetText("Title")
 				//co.(*widgets.TrackFilter).SetFilter(globalfilter.NewVideoTitleFilter())
 			case "v_lang":
-				co.(*widgets.TrackFilter).SetText("Language")
+				co.(*TrackFilter).SetText("Language")
 			case "a_id":
-				co.(*widgets.TrackFilter).SetText("ID")
+				co.(*TrackFilter).SetText("ID")
 			case "a_title":
-				co.(*widgets.TrackFilter).SetText("Title")
+				co.(*TrackFilter).SetText("Title")
 			case "a_lang":
-				co.(*widgets.TrackFilter).SetText("Language")
+				co.(*TrackFilter).SetText("Language")
 			case "s_id":
-				co.(*widgets.TrackFilter).SetText("ID")
+				co.(*TrackFilter).SetText("ID")
 			case "s_title":
-				co.(*widgets.TrackFilter).SetText("Title")
+				co.(*TrackFilter).SetText("Title")
 			case "s_lang":
-				co.(*widgets.TrackFilter).SetText("Language")
+				co.(*TrackFilter).SetText("Language")
 
 			}
 
 			alreadyAppend := false
 			for _, o := range objects {
-				if co.(*widgets.TrackFilter).Equals(o.(*widgets.TrackFilter)) {
+				if co.(*TrackFilter).Equals(o.(*TrackFilter)) {
 					alreadyAppend = true
 					break
 				}
