@@ -65,6 +65,7 @@ func (h HomeView) Content() fyne.CanvasObject {
 	layout := container.NewAdaptiveGrid(2, c, container.NewAppTabs(
 		container.NewTabItem("Filter", components.NewFilterComponent(&h.window, h.list.GetFiles()).Content()),
 		container.NewTabItem("Track Remover", components.NewTrackRemoverComponent(&h.window, h.list.GetFiles()).Content()),
+		container.NewTabItem("Merge files", components.NewMergeFilesComponent(&h.window, h.list.GetFiles()).Content()),
 	))
 
 	return layout
