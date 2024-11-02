@@ -13,7 +13,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/widgets"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/customs"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 )
@@ -61,11 +61,11 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 			return len(f.inputFiles)
 		},
 		func() fyne.CanvasObject {
-			return container.NewHBox(widget.NewCheck("", nil), widgets.NewNumericalEntry(), widget.NewLabel(""))
+			return container.NewHBox(widget.NewCheck("", nil), customs.NewNumericalEntry(), widget.NewLabel(""))
 		},
 		func(i widget.ListItemID, item fyne.CanvasObject) {
 			item.(*fyne.Container).Objects[0].(*widget.Check).Checked = f.inputFiles[i].enabled
-			item.(*fyne.Container).Objects[1].(*widgets.NumericalEntry).SetText(fmt.Sprintf("%d", f.inputFiles[i].position))
+			item.(*fyne.Container).Objects[1].(*customs.NumericalEntry).SetText(fmt.Sprintf("%d", f.inputFiles[i].position))
 			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(f.inputFiles[i].file)
 
 		},

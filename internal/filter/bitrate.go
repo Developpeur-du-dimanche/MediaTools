@@ -2,7 +2,7 @@ package filter
 
 import (
 	"fyne.io/fyne/v2"
-	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/widgets"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/customs"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
@@ -39,7 +39,7 @@ func (c *BitrateFilter) SetCondition(condition string) {
 }
 
 func (c *BitrateFilter) GetEntry() fyne.Widget {
-	entry := widgets.NewNumericalEntry()
+	entry := customs.NewNumericalEntry()
 	entry.TextStyle = fyne.TextStyle{Monospace: true}
 	entry.OnChanged = func(s string) {
 		c.Value = s
