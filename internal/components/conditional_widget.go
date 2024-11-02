@@ -14,10 +14,6 @@ type ConditionalWidget struct {
 	container *fyne.Container
 }
 
-var conditions = []filter.ConditionContract{
-	filter.NewContainerFilter(),
-}
-
 var choices = make([]string, len(conditions))
 
 func NewConditionalWidget() *ConditionalWidget {
@@ -43,14 +39,16 @@ func NewConditionalWidget() *ConditionalWidget {
 			if cond.Name() == s {
 				c.choice = cond.New()
 				choiceWidget := widget.NewSelect(cond.GetPossibleConditions(), func(s string) {
-					c.choice.SetCondition(filter.ConditionString(s))
+					c.choice.SetCondition(s)
 				})
 				c.container.Objects[1] = choiceWidget
-				c.container.Objects[2] = widget.NewEntry()
+				c.container.Objects[2] = c.choice.GetEntry()
 				break
 			}
 		}
 	}
+
+	c.ExtendBaseWidget(c)
 
 	return c
 

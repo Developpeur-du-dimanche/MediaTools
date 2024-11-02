@@ -4,72 +4,106 @@ import (
 	"strconv"
 	"strings"
 
+	"fyne.io/fyne/v2"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
 type ConditionContract interface {
 	Name() string
-	Check(data *ffprobe.ProbeData) bool
 	GetPossibleConditions() []string
 	New() ConditionContract
-	SetCondition(condition ConditionString)
-}
-
-type Filter struct {
-	condition ConditionString
-	value     string
+	CheckGlobal(data *ffprobe.ProbeData) bool
+	CheckStream(data *ffprobe.Stream) bool
+	SetCondition(condition string)
+	GetEntry() fyne.Widget
 }
 
 type ConditionString string
 
 var (
-	equals          ConditionString = "equals"
-	contains        ConditionString = "contains"
-	notEquals       ConditionString = "not equals"
-	greaterThan     ConditionString = "greater than"
-	lessThan        ConditionString = "less than"
-	greaterOrEquals ConditionString = "greater or equals"
-	lessOrEquals    ConditionString = "less or equals"
+	Equals          ConditionString = "equals"
+	Contains        ConditionString = "contains"
+	NotEquals       ConditionString = "not equals"
+	GreaterThan     ConditionString = "greater than"
+	LessThan        ConditionString = "less than"
+	GreaterOrEquals ConditionString = "greater or equals"
+	LessOrEquals    ConditionString = "less or equals"
 )
 
-func (f *Filter) checkString(value string) bool {
-	switch f.condition {
-	case equals:
-		return value == f.value
-	case contains:
-		return strings.Contains(value, f.value)
-	case notEquals:
-		return value != f.value
+type Filter struct {
+	Condition ConditionString
+	Value     string
+}
+
+func FromString(condition string) ConditionString {
+	switch condition {
+	case "equals":
+		return Equals
+	case "contains":
+		return Contains
+	case "not equals":
+		return NotEquals
+	case "greater than":
+		return GreaterThan
+	case "less than":
+		return LessThan
+	case "greater or equals":
+		return GreaterOrEquals
+	case "less or equals":
+		return LessOrEquals
+	default:
+		return ""
+	}
+}
+
+func (f *Filter) CheckString(value string) bool {
+	switch f.Condition {
+	case Equals:
+		return value == f.Value
+	case Contains:
+		return strings.Contains(value, f.Value)
+	case NotEquals:
+		return value != f.Value
 	default:
 		return false
 	}
 }
 
-func (f *Filter) valueAsInt() (int, error) {
-	return strconv.Atoi(f.value)
+func (f *Filter) ValueAsInt() (int, error) {
+	return strconv.Atoi(f.Value)
 }
 
-func (f *Filter) checkInt(value int) bool {
-	valueInt, err := f.valueAsInt()
+func (f *Filter) CheckInt(value int) bool {
+	valueInt, err := f.ValueAsInt()
 
 	if err != nil {
 		return false
 	}
 
-	switch f.condition {
-	case equals:
+	switch f.Condition {
+	case Equals:
 		return value == valueInt
-	case greaterThan:
+	case GreaterThan:
 		return value > valueInt
-	case lessThan:
+	case LessThan:
 		return value < valueInt
-	case greaterOrEquals:
+	case GreaterOrEquals:
 		return value >= valueInt
-	case lessOrEquals:
+	case LessOrEquals:
 		return value <= valueInt
-	case notEquals:
+	case NotEquals:
 		return value != valueInt
 	default:
 		return false
 	}
+}
+
+func (f *Filter) CheckStringToInt(value string) bool {
+	valueInt, err := strconv.Atoi(value)
+
+	if err != nil {
+		return false
+	}
+
+	return f.CheckInt(valueInt)
 }

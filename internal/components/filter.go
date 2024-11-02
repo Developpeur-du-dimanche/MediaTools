@@ -1,22 +1,44 @@
 package components
 
 import (
+	"errors"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/filter"
+	globalfilter "github.com/Developpeur-du-dimanche/MediaTools/internal/filter/global"
+	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
+	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 )
 
-type FilterComponent struct {
-	choices   *[]*ConditionalWidget
-	container *fyne.Container
-	fileList  *[]string
+var conditions = []filter.ConditionContract{
+	globalfilter.NewContainerFilter(),
+	globalfilter.NewAudioLanguageFilter(),
+	globalfilter.NewBitrateFilter(),
+	globalfilter.NewSubtitleForcedFilter(),
+	globalfilter.NewSubtitleLanguageFilter(),
+	globalfilter.NewSubtitleTitleFilter(),
+	globalfilter.NewSubtitleCodecFilter(),
+	globalfilter.NewVideoTitleFilter(),
 }
 
-func NewFilterComponent(fileList *[]string) *FilterComponent {
+type FilterComponent struct {
+	choices      *[]*ConditionalWidget
+	container    *fyne.Container
+	fileList     *list.List[*fileinfo.FileInfo]
+	window       *fyne.Window
+	filterButton *widget.Button
+}
+
+func NewFilterComponent(window *fyne.Window, fileList *list.List[*fileinfo.FileInfo]) *FilterComponent {
 	return &FilterComponent{
-		choices:   &[]*ConditionalWidget{},
-		container: container.NewVBox(),
-		fileList:  fileList,
+		choices:      &[]*ConditionalWidget{},
+		container:    container.NewVBox(),
+		fileList:     fileList,
+		window:       window,
+		filterButton: widget.NewButton("Filter", nil),
 	}
 }
 
@@ -35,20 +57,82 @@ func (f *FilterComponent) Content() fyne.CanvasObject {
 		}
 	})
 
-	filterButton := widget.NewButton("Filter", func() {
-		//TODO
-	})
+	f.filterButton.OnTapped = f.Filter
 
 	return container.NewBorder(
 		container.NewHBox(
 			addFilterButton,
 			removeFilterButton,
 		),
-		filterButton,
+		f.filterButton,
 		nil,
 		nil,
 		container.NewVScroll(
 			f.container,
 		),
 	)
+}
+
+func (f *FilterComponent) Filter() {
+	f.filterButton.Disable()
+
+	if f.fileList.GetLength() == 0 || len(*f.choices) == 0 {
+		dialog.ShowError(errors.New("no file selected or no filter added"), *f.window)
+		f.filterButton.Enable()
+		return
+	}
+
+	output := list.NewList[fileinfo.FileInfo]()
+	treatmentOf := widget.NewLabel("file is currently being treated, please wait...")
+	cd := dialog.NewCustomWithoutButtons("Please wait", treatmentOf, *f.window)
+	cd.Show()
+	for _, file := range f.fileList.GetItems() {
+		treatmentOf.SetText("file is currently being treated: " + file.Path + " please wait...")
+
+		data := file.Info
+		isValid := false
+		for _, c := range *f.choices {
+
+			if c.choice.CheckGlobal(data) {
+				isValid = true
+			}
+		}
+		if isValid {
+			output.AddItem(*file)
+		}
+	}
+
+	cd.Hide()
+
+	// create new window to display filtered files
+	w := fyne.CurrentApp().NewWindow("Filtered files")
+	screen := fyne.CurrentApp().Driver().AllWindows()[0].Canvas().Size()
+	w.Resize(fyne.NewSize(float32(screen.Width/2), float32(screen.Height/2)))
+
+	list := widget.NewList(
+		func() int {
+			return output.GetLength()
+		},
+		func() fyne.CanvasObject {
+			return widget.NewLabel("template")
+		},
+		func(i widget.ListItemID, item fyne.CanvasObject) {
+			item.(*widget.Label).SetText(output.GetItem(i).Path)
+		},
+	)
+
+	list.Resize(fyne.NewSize(float32(screen.Width/4), float32(screen.Height/2)))
+
+	w.SetContent(container.NewBorder(
+		nil,
+		nil,
+		nil,
+		nil,
+		list,
+	))
+
+	w.Show()
+
+	f.filterButton.Enable()
+
 }

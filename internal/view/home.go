@@ -2,6 +2,9 @@ package view
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -13,46 +16,27 @@ import (
 )
 
 type HomeView struct {
-	c        chan string
-	listFile []string
-	window   fyne.Window
-	list     *widget.List
+	window fyne.Window
+	list   *components.FileListComponent
 }
+
+var acceptedExtensions = []string{".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".webm", ".mpg", ".mpeg", ".wav", ".flac", ".ogg"}
 
 func NewHomeView(app fyne.App) View {
 
 	home := &HomeView{
-		listFile: []string{},
-		c:        make(chan string),
+		window: app.NewWindow("MediaTools"),
 	}
 
-	home.window = app.NewWindow("MediaTools")
 	screen := screenshot.GetDisplayBounds(0)
 	home.window.Resize(fyne.NewSize(float32(screen.Dx()/2), float32(screen.Dy()/2)))
-	home.list = widget.NewList(
-		func() int {
-			return len(home.listFile)
-		},
-		func() fyne.CanvasObject {
-			return widget.NewLabel("template")
-		},
-		func(i widget.ListItemID, item fyne.CanvasObject) {
-			item.(*widget.Label).SetText(home.listFile[i])
-		},
-	)
 
-	home.list.Resize(fyne.NewSize(float32(screen.Dx()/4), float32(screen.Dy()/2)))
+	list := components.NewFileListComponent(&home.window)
+
+	home.list = list
 
 	home.window.SetContent(home.Content())
 	home.window.SetMainMenu(home.GetMainMenu())
-
-	go func() {
-		for file := range home.c {
-			fmt.Println(file)
-			home.listFile = append(home.listFile, file)
-			home.list.Refresh()
-		}
-	}()
 
 	return home
 }
@@ -68,8 +52,7 @@ func (h HomeView) Content() fyne.CanvasObject {
 				h.OpenFileDialog().Show()
 			}),
 			widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
-				h.listFile = []string{}
-				h.list.Refresh()
+				h.list.Clear()
 			}),
 		),
 		nil,
@@ -79,10 +62,9 @@ func (h HomeView) Content() fyne.CanvasObject {
 	)
 
 	c.Resize((h.window.Canvas().Size()))
-
 	layout := container.NewAdaptiveGrid(2, c, container.NewAppTabs(
-		container.NewTabItem("Filter", components.NewFilterComponent(&h.listFile).Content()),
-		container.NewTabItem("Track Remover", components.NewTrackRemoverComponent().Content()),
+		container.NewTabItem("Filter", components.NewFilterComponent(&h.window, h.list.GetFiles()).Content()),
+		container.NewTabItem("Track Remover", components.NewTrackRemoverComponent(&h.window, h.list.GetFiles()).Content()),
 	))
 
 	return layout
@@ -114,7 +96,7 @@ func (h *HomeView) OpenFileDialog() *dialog.FileDialog {
 		if uc == nil {
 			return
 		}
-		h.c <- uc.URI().String()
+		h.list.AddFile(uc.URI().Path())
 	}, *h.GetWindow())
 	size := (*h.GetWindow()).Canvas().Size()
 	dialog.Resize(fyne.NewSize(size.Width-150, size.Height-150))
@@ -139,11 +121,50 @@ func (h *HomeView) OpenFolderDialog() *dialog.FileDialog {
 			return
 		}
 
+		scanFolder := widget.NewLabel("Scanning folder: " + lu.Path())
+		dialog := dialog.NewCustomWithoutButtons("Scanning folder", scanFolder, *h.GetWindow())
+		dialog.Show()
+
 		for _, file := range list {
-			h.c <- file.Path()
+			if i, err := os.Stat(file.Path()); err == nil && i.IsDir() {
+				filepath.WalkDir(file.Path(), func(path string, d os.DirEntry, err error) error {
+
+					scanFolder.SetText("Scanning folder: " + path)
+
+					if err != nil {
+						return err
+					}
+
+					if filepath.Ext(path) == "" {
+						return nil
+					}
+
+					if isValidExtension(filepath.Ext(path)) {
+						h.list.AddFile(path)
+					}
+					return nil
+				})
+			} else {
+				scanFolder.SetText("Scanning folder: " + file.Path())
+				fmt.Printf("ext: %s\n", file.Extension())
+				if isValidExtension(strings.ToLower(file.Extension())) {
+					h.list.AddFile(file.Path())
+				}
+			}
+
 		}
+		dialog.Hide()
 	}, *h.GetWindow())
 	size := (*h.GetWindow()).Canvas().Size()
 	dialog.Resize(fyne.NewSize(size.Width-150, size.Height-150))
 	return dialog
+}
+
+func isValidExtension(extension string) bool {
+	for _, ext := range acceptedExtensions {
+		if ext == extension {
+			return true
+		}
+	}
+	return false
 }
