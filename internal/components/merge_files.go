@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/customs"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/helper"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 )
@@ -152,7 +153,7 @@ func (f *MergeFiles) Merge() {
 		return
 	}
 
-	err := f.MergeFiles(finalInputFiles, f.outputFile+"/output.mkv")
+	err := f.MergeFiles(finalInputFiles, f.outputFile+"output_"+finalInputFiles[0])
 	if err != nil {
 		dialog.ShowError(err, f.window)
 	}
@@ -226,6 +227,8 @@ func (f *MergeFiles) runCommandWithProgress(cmd string, totalSize int64) error {
 	path = strings.ReplaceAll(path, "\\", "/")
 
 	command := exec.Command(path, strings.Split(cmd, " ")...)
+
+	helper.RunCmdBackground(command)
 
 	stdout, err := command.StdoutPipe()
 	if err != nil {
