@@ -12,6 +12,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/customs"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
@@ -26,6 +28,18 @@ type inputFiles struct {
 	file     string
 	position int
 	enabled  bool
+}
+
+type ffmpegProgress struct {
+	bitrate    float64
+	totalSize  int64
+	outTimeUs  int64
+	outTimeMs  int64
+	outTime    string
+	dupFrames  int
+	dropFrames int
+	speed      float64
+	progress   string
 }
 
 type MergeFiles struct {
@@ -52,6 +66,7 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 		f.Merge()
 	})
 	outputFile := widget.NewEntry()
+	outputFile.SetPlaceHolder("Output folder")
 	outputFile.OnChanged = func(s string) {
 		f.outputFile = s
 	}
@@ -83,12 +98,28 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 		container.NewHBox(
 			refreshButton,
 		),
-		container.NewVBox(
-			container.NewHBox(
-				widget.NewLabel("Output file:"),
-				outputFile,
-			),
+		container.NewBorder(
+			nil,
 			mergeButton,
+			widget.NewButtonWithIcon("", theme.FolderIcon(), func() {
+				dialogFolder := dialog.NewFolderOpen(func(uc fyne.ListableURI, err error) {
+					if err != nil {
+						dialog.ShowError(err, f.window)
+						return
+					}
+
+					if uc == nil {
+						return
+					}
+
+					f.outputFile = uc.Path()
+					outputFile.SetText(f.outputFile)
+				}, f.window)
+				size := (f.window).Canvas().Size()
+				dialogFolder.Resize(fyne.NewSize(size.Width-150, size.Height-150))
+				dialogFolder.Show()
+			}),
+			nil, outputFile,
 		),
 		nil,
 		nil,
@@ -120,50 +151,68 @@ func (f *MergeFiles) Merge() {
 		return
 	}
 
-	err := f.MergeFiles(finalInputFiles, f.outputFile)
+	err := f.MergeFiles(finalInputFiles, f.outputFile+"/output.mkv")
 	if err != nil {
 		fmt.Printf("Error: %s\n", err)
-		widget.NewLabel(err.Error())
+		dialog.ShowError(err, f.window)
 	}
 }
 
 func (f *MergeFiles) MergeFiles(files []string, output string) error {
-	// create temp txt file
+	// Normaliser le chemin de sortie
+	output = strings.ReplaceAll(output, "\\", "/")
+
+	// Calculer la taille totale des fichiers d'entrée
+	totalSize, err := f.calculateTotalSize(files)
+	if err != nil {
+		return err
+	}
+
+	// Créer le fichier temporaire avec le chemin normalisé
 	txtFile, err := os.Create(output + ".txt")
 	if err != nil {
 		return err
 	}
 	defer txtFile.Close()
 
+	// Écrire les chemins normalisés dans le fichier temporaire
 	for _, file := range files {
-		_, err := txtFile.WriteString(fmt.Sprintf("file '%s'\n", strings.ReplaceAll(file, "\\", "/")))
+		normalizedPath := strings.ReplaceAll(file, "\\", "/")
+		_, err := txtFile.WriteString(fmt.Sprintf("file '%s'\n", normalizedPath))
 		if err != nil {
 			return err
 		}
 	}
 
-	// replace all '\' by '/'
-	output = strings.ReplaceAll(output, "\\", "/")
+	// Normaliser le chemin du fichier temporaire pour la commande FFmpeg
+	normalizedTxtPath := strings.ReplaceAll(txtFile.Name(), "\\", "/")
 
-	// run ffmpeg command with progress
-	cmd := fmt.Sprintf("-progress pipe:1 -f concat -safe 0 -i %s -c copy %s",
-		strings.ReplaceAll(txtFile.Name(), "\\", "/"),
+	cmd := fmt.Sprintf("-progress pipe:1 -y -f concat -safe 0 -i %s -c copy %s",
+		normalizedTxtPath,
 		output)
-	err = f.runCommandWithProgress(cmd)
+	err = f.runCommandWithProgress(cmd, totalSize)
 	if err != nil {
 		return err
 	}
 
-	// remove temp txt file
-	err = os.Remove(txtFile.Name())
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return os.Remove(txtFile.Name())
 }
 
-func (f *MergeFiles) runCommandWithProgress(cmd string) error {
+func (f *MergeFiles) calculateTotalSize(files []string) (int64, error) {
+	var totalSize int64
+	for _, file := range files {
+		// Normaliser le chemin avant d'accéder au fichier
+		normalizedPath := strings.ReplaceAll(file, "\\", "/")
+		fileInfo, err := os.Stat(normalizedPath)
+		if err != nil {
+			return 0, err
+		}
+		totalSize += fileInfo.Size()
+	}
+	return totalSize, nil
+}
+
+func (f *MergeFiles) runCommandWithProgress(cmd string, totalSize int64) error {
 	path, err := exec.LookPath("FFMPEG")
 	if err != nil {
 		return err
@@ -173,80 +222,82 @@ func (f *MergeFiles) runCommandWithProgress(cmd string) error {
 		return errors.New("ffmpeg not found")
 	}
 
+	// Normaliser le chemin de FFmpeg
+	path = strings.ReplaceAll(path, "\\", "/")
+
 	command := exec.Command(path, strings.Split(cmd, " ")...)
 
-	// Créer un pipe pour la sortie standard
 	stdout, err := command.StdoutPipe()
 	if err != nil {
 		return err
 	}
 
-	// Créer un pipe pour la sortie d'erreur
-	stderr, err := command.StderrPipe()
-	if err != nil {
-		return err
-	}
+	command.Stderr = os.Stderr
 
-	// Démarrer la commande
 	if err := command.Start(); err != nil {
 		return err
 	}
 
-	// Scanner pour lire la progression
 	scanner := bufio.NewScanner(stdout)
+	progress := &ffmpegProgress{}
 
-	// Variables pour suivre la progression
-	var duration float64
-	var currentTime float64
+	var lines []string
 
-	// Lire la sortie d'erreur dans une goroutine séparée
-	go func() {
-		errScanner := bufio.NewScanner(stderr)
-		for errScanner.Scan() {
-			line := errScanner.Text()
-			// Extraire la durée totale
-			if strings.Contains(line, "Duration:") {
-				durationStr := strings.Split(strings.Split(line, "Duration: ")[1], ",")[0]
-				duration = parseFFmpegTime(durationStr)
-			}
-		}
-	}()
-
-	// Lire la progression
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "out_time_us=") {
-			timeStr := strings.Split(line, "=")[1]
-			currentTime = float64(parseInt64(timeStr)) / 1000000 // convertir microsecondes en secondes
 
-			if duration > 0 {
-				progress := (currentTime / duration) * 100
-				// Mettre à jour l'interface utilisateur avec le pourcentage
-				f.processText.SetText(fmt.Sprintf("Merging files... %.0f%%", progress))
+		if line == "progress=continue" {
+			f.parseProgressBlock(lines, progress)
+
+			if totalSize > 0 {
+				percentComplete := float64(progress.totalSize) / float64(totalSize) * 100
+
+				f.processText.SetText(fmt.Sprintf("Merging files... %.1f%% (Speed: %.1fx, Bitrate: %.1f kbits/s)",
+					percentComplete,
+					progress.speed,
+					progress.bitrate))
 			}
+
+			lines = []string{}
+		} else if line == "progress=end" {
+			f.processText.SetText("Merging files... 100%")
+			break
+		} else {
+			lines = append(lines, line)
 		}
 	}
 
-	// Attendre que la commande se termine
 	return command.Wait()
 }
 
-// Fonction utilitaire pour parser le temps FFmpeg (format HH:MM:SS.ms)
-func parseFFmpegTime(timeStr string) float64 {
-	parts := strings.Split(timeStr, ":")
-	if len(parts) != 3 {
-		return 0
+func (f *MergeFiles) parseProgressBlock(lines []string, progress *ffmpegProgress) {
+	for _, line := range lines {
+		parts := strings.Split(line, "=")
+		if len(parts) != 2 {
+			continue
+		}
+
+		key, value := parts[0], parts[1]
+
+		switch key {
+		case "bitrate":
+			progress.bitrate, _ = strconv.ParseFloat(strings.TrimSuffix(value, "kbits/s"), 64)
+		case "total_size":
+			progress.totalSize, _ = strconv.ParseInt(value, 10, 64)
+		case "out_time_us":
+			progress.outTimeUs, _ = strconv.ParseInt(value, 10, 64)
+		case "out_time_ms":
+			progress.outTimeMs, _ = strconv.ParseInt(value, 10, 64)
+		case "out_time":
+			progress.outTime = value
+		case "dup_frames":
+			progress.dupFrames, _ = strconv.Atoi(value)
+		case "drop_frames":
+			progress.dropFrames, _ = strconv.Atoi(value)
+		case "speed":
+			progress.speed, _ = strconv.ParseFloat(strings.TrimSuffix(value, "x"), 64)
+		case "progress":
+			progress.progress = value
+		}
 	}
-
-	hours, _ := strconv.ParseFloat(parts[0], 64)
-	minutes, _ := strconv.ParseFloat(parts[1], 64)
-	seconds, _ := strconv.ParseFloat(parts[2], 64)
-
-	return hours*3600 + minutes*60 + seconds
-}
-
-// Fonction utilitaire pour parser les entiers 64 bits
-func parseInt64(s string) int64 {
-	i, _ := strconv.ParseInt(s, 10, 64)
-	return i
 }
