@@ -82,7 +82,8 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 			item.(*fyne.Container).Objects[0].(*widget.Check).Checked = f.inputFiles[i].enabled
 			item.(*fyne.Container).Objects[1].(*customs.NumericalEntry).SetText(fmt.Sprintf("%d", f.inputFiles[i].position))
 			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(f.inputFiles[i].file)
-
+			// refresh ui for check box
+			item.Refresh()
 		},
 	)
 
@@ -153,7 +154,6 @@ func (f *MergeFiles) Merge() {
 
 	err := f.MergeFiles(finalInputFiles, f.outputFile+"/output.mkv")
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
 		dialog.ShowError(err, f.window)
 	}
 }
@@ -272,32 +272,65 @@ func (f *MergeFiles) runCommandWithProgress(cmd string, totalSize int64) error {
 
 func (f *MergeFiles) parseProgressBlock(lines []string, progress *ffmpegProgress) {
 	for _, line := range lines {
-		parts := strings.Split(line, "=")
+		// Diviser sur le premier "=" seulement
+		parts := strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
 			continue
 		}
 
-		key, value := parts[0], parts[1]
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
 
 		switch key {
 		case "bitrate":
-			progress.bitrate, _ = strconv.ParseFloat(strings.TrimSuffix(value, "kbits/s"), 64)
+			// Extraire uniquement les chiffres et le point décimal
+			value = extractNumber(value)
+			progress.bitrate, _ = strconv.ParseFloat(value, 64)
 		case "total_size":
+			value = extractNumber(value)
 			progress.totalSize, _ = strconv.ParseInt(value, 10, 64)
 		case "out_time_us":
+			value = extractNumber(value)
 			progress.outTimeUs, _ = strconv.ParseInt(value, 10, 64)
 		case "out_time_ms":
+			value = extractNumber(value)
 			progress.outTimeMs, _ = strconv.ParseInt(value, 10, 64)
 		case "out_time":
 			progress.outTime = value
 		case "dup_frames":
+			value = extractNumber(value)
 			progress.dupFrames, _ = strconv.Atoi(value)
 		case "drop_frames":
+			value = extractNumber(value)
 			progress.dropFrames, _ = strconv.Atoi(value)
 		case "speed":
-			progress.speed, _ = strconv.ParseFloat(strings.TrimSuffix(value, "x"), 64)
+			value = extractNumber(value)
+			progress.speed, _ = strconv.ParseFloat(value, 64)
 		case "progress":
 			progress.progress = value
 		}
 	}
+}
+
+// extractNumber extrait uniquement les chiffres et le point décimal d'une chaîne
+func extractNumber(s string) string {
+	var result strings.Builder
+	hasDecimal := false
+
+	// Gérer le signe négatif au début
+	if strings.HasPrefix(strings.TrimSpace(s), "-") {
+		result.WriteRune('-')
+		s = strings.TrimPrefix(strings.TrimSpace(s), "-")
+	}
+
+	for _, c := range s {
+		if c >= '0' && c <= '9' {
+			result.WriteRune(c)
+		} else if c == '.' && !hasDecimal {
+			result.WriteRune(c)
+			hasDecimal = true
+		}
+	}
+
+	return result.String()
 }
