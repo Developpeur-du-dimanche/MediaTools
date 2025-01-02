@@ -89,14 +89,14 @@ func (f *FilterComponent) Filter() {
 		treatmentOf.SetText("file is currently being treated: " + file.GetPath() + " please wait...")
 
 		data := file.GetInfo()
-		isValid := false
+		isValid := 0
 		for _, c := range f.choices {
 
 			if c.choice.CheckGlobal(data) {
-				isValid = true
+				isValid++
 			}
 		}
-		if isValid {
+		if isValid == len(f.choices) {
 			output.AddItem(file)
 		}
 	}
