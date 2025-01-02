@@ -11,12 +11,12 @@ import (
 type TrackRemoverComponent struct {
 	choices           *[]*ConditionalWidget
 	container         *fyne.Container
-	fileList          *list.List[*fileinfo.FileInfo]
+	fileList          *list.List[fileinfo.FileInfo]
 	window            *fyne.Window
 	removeTrackButton *widget.Button
 }
 
-func NewTrackRemoverComponent(window *fyne.Window, fileList *list.List[*fileinfo.FileInfo]) *TrackRemoverComponent {
+func NewTrackRemoverComponent(window *fyne.Window, fileList *list.List[fileinfo.FileInfo]) *TrackRemoverComponent {
 	return &TrackRemoverComponent{
 		choices:           &[]*ConditionalWidget{},
 		container:         container.NewVBox(),

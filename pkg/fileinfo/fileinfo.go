@@ -8,11 +8,18 @@ import (
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
-type FileInfoContract interface {
-	Equals(other FileInfoContract) bool
+type FileInfo interface {
+	GetFilename() string
+	GetFolder() string
+	GetPath() string
+	GetInfo() *ffprobe.ProbeData
+	GetVideoStreams() *[]ffprobe.Stream
+	GetAudioStreams() *[]ffprobe.Stream
+	GetSubtitleStreams() *[]ffprobe.Stream
+	Equals(other FileInfo) bool
 }
 
-type FileInfo struct {
+type fileInfo struct {
 	Path            string
 	Folder          string
 	Filename        string
@@ -22,7 +29,7 @@ type FileInfo struct {
 	Info            *ffprobe.ProbeData
 }
 
-func NewFileInfo(path string) (*FileInfo, error) {
+func NewFileInfo(path string) (FileInfo, error) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFn()
 
@@ -47,7 +54,7 @@ func NewFileInfo(path string) (*FileInfo, error) {
 		}
 	}
 
-	return &FileInfo{
+	return &fileInfo{
 		Path:            path,
 		Filename:        getFilename(path),
 		Folder:          getFolder(path),
@@ -56,6 +63,10 @@ func NewFileInfo(path string) (*FileInfo, error) {
 		AudioStreams:    &audioStreams,
 		SubtitleStreams: &subtitleStreams,
 	}, nil
+}
+
+func (f *fileInfo) GetFilename() string {
+	return f.Filename
 }
 
 func getFilename(path string) string {
@@ -68,8 +79,32 @@ func getFolder(path string) string {
 	return filepath.Dir(path)
 }
 
-func (f *FileInfo) Equals(other FileInfoContract) bool {
-	otherFileInfo, ok := other.(*FileInfo)
+func (f *fileInfo) GetFolder() string {
+	return f.Folder
+}
+
+func (f *fileInfo) GetPath() string {
+	return f.Path
+}
+
+func (f *fileInfo) GetInfo() *ffprobe.ProbeData {
+	return f.Info
+}
+
+func (f *fileInfo) GetVideoStreams() *[]ffprobe.Stream {
+	return f.VideoStreams
+}
+
+func (f *fileInfo) GetAudioStreams() *[]ffprobe.Stream {
+	return f.AudioStreams
+}
+
+func (f *fileInfo) GetSubtitleStreams() *[]ffprobe.Stream {
+	return f.SubtitleStreams
+}
+
+func (f *fileInfo) Equals(other FileInfo) bool {
+	otherFileInfo, ok := other.(*fileInfo)
 	if !ok {
 		return false
 	}

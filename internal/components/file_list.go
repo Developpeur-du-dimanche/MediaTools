@@ -12,20 +12,20 @@ import (
 
 type FileListComponent struct {
 	widget.BaseWidget
-	files       *list.List[*fileinfo.FileInfo]
+	files       *list.List[fileinfo.FileInfo]
 	list        *widget.List
 	c           chan string
-	OnFileClick func(file *fileinfo.FileInfo)
+	OnFileClick func(file fileinfo.FileInfo)
 }
 
 func NewFileListComponent(parent *fyne.Window) *FileListComponent {
-	files := list.NewList[*fileinfo.FileInfo]()
+	files := list.NewList[fileinfo.FileInfo]()
 	list := new(widget.List)
 	c := &FileListComponent{
 		files:       files,
 		list:        list,
 		c:           make(chan string),
-		OnFileClick: func(file *fileinfo.FileInfo) {},
+		OnFileClick: func(file fileinfo.FileInfo) {},
 	}
 
 	c.list = widget.NewList(
@@ -46,7 +46,7 @@ func NewFileListComponent(parent *fyne.Window) *FileListComponent {
 				d.Resize(fyne.NewSize(400, 400))
 				d.Show()
 			}
-			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(files.GetItem(i).Filename)
+			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(files.GetItem(i).GetFilename())
 		},
 	)
 
@@ -81,11 +81,11 @@ func (f *FileListComponent) Clear() {
 	f.list.Refresh()
 }
 
-func (f *FileListComponent) RemoveFile(file *fileinfo.FileInfo) {
+func (f *FileListComponent) RemoveFile(file fileinfo.FileInfo) {
 	f.files.RemoveItem(file)
 }
 
-func (f *FileListComponent) GetFiles() *list.List[*fileinfo.FileInfo] {
+func (f *FileListComponent) GetFiles() *list.List[fileinfo.FileInfo] {
 	return f.files
 }
 

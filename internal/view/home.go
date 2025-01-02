@@ -22,10 +22,10 @@ type HomeView struct {
 
 var acceptedExtensions = []string{".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".webm", ".mpg", ".mpeg", ".wav", ".flac", ".ogg"}
 
-func NewHomeView(app fyne.App) View {
+func NewHomeView(window fyne.Window) View {
 
 	home := &HomeView{
-		window: app.NewWindow("MediaTools"),
+		window: window,
 	}
 
 	screen := screenshot.GetDisplayBounds(0)

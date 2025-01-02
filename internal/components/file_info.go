@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/info"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
@@ -14,16 +15,16 @@ import (
 
 type FileInfoComponent struct {
 	widget.BaseWidget
-	file  *fileinfo.FileInfo
+	file  fileinfo.FileInfo
 	tree  *widget.Tree
 	title string
 }
 
-func NewFileInfoComponent(file *fileinfo.FileInfo) *FileInfoComponent {
+func NewFileInfoComponent(file fileinfo.FileInfo) *FileInfoComponent {
 
 	c := &FileInfoComponent{
 		file:  file,
-		title: file.Filename,
+		title: file.GetFilename(),
 	}
 
 	c.tree = widget.NewTree(c.childUIDs, c.isBranch, c.create, c.update)
@@ -34,8 +35,8 @@ func NewFileInfoComponent(file *fileinfo.FileInfo) *FileInfoComponent {
 func (f *FileInfoComponent) CreateRenderer() fyne.WidgetRenderer {
 	b := container.NewBorder(
 		container.NewVBox(
-			widget.NewLabel("Folder: "+f.file.Folder),
-			widget.NewLabel("Filename: "+f.file.Filename),
+			widget.NewLabel(lang.L("folder")+f.file.GetFolder()),
+			widget.NewLabel("Filename: "+f.file.GetFilename()),
 		),
 		nil,
 		nil,
@@ -53,11 +54,11 @@ func (f *FileInfoComponent) childUIDs(id widget.TreeNodeID) []widget.TreeNodeID 
 	case "streams":
 		return []widget.TreeNodeID{"Video", "Audio", "Subtitle"}
 	case "Video":
-		return generateStreamNodes(file.VideoStreams, "Video")
+		return generateStreamNodes(file.GetVideoStreams(), "Video")
 	case "Audio":
-		return generateStreamNodes(file.AudioStreams, "Audio")
+		return generateStreamNodes(file.GetAudioStreams(), "Audio")
 	case "Subtitle":
-		return generateStreamNodes(file.SubtitleStreams, "Subtitle")
+		return generateStreamNodes(file.GetSubtitleStreams(), "Subtitle")
 	case "format":
 		return []widget.TreeNodeID{"format_name", "duration", "size"}
 	}
@@ -81,19 +82,19 @@ func (f *FileInfoComponent) isBranch(id widget.TreeNodeID) bool {
 		return true
 	}
 
-	for i := 0; i < len(*file.VideoStreams); i++ {
+	for i := 0; i < len(*file.GetVideoStreams()); i++ {
 		if id == "Video "+fmt.Sprint(i) {
 			return true
 		}
 	}
 
-	for i := 0; i < len(*file.AudioStreams); i++ {
+	for i := 0; i < len(*file.GetAudioStreams()); i++ {
 		if id == "Audio "+fmt.Sprint(i) {
 			return true
 		}
 	}
 
-	for i := 0; i < len(*file.SubtitleStreams); i++ {
+	for i := 0; i < len(*file.GetSubtitleStreams()); i++ {
 		if id == "Subtitle "+fmt.Sprint(i) {
 			return true
 		}
@@ -115,11 +116,11 @@ func (f *FileInfoComponent) update(id widget.TreeNodeID, isBranch bool, co fyne.
 
 	switch id {
 	case "format_name":
-		co.(*widget.Label).SetText("Format name: " + file.Info.Format.FormatName)
+		co.(*widget.Label).SetText("Format name: " + file.GetInfo().Format.FormatName)
 	case "duration":
-		co.(*widget.Label).SetText("Duration: " + fmt.Sprint(file.Info.Format.Duration()))
+		co.(*widget.Label).SetText("Duration: " + fmt.Sprint(file.GetInfo().Format.Duration()))
 	case "size":
-		co.(*widget.Label).SetText("Size: " + file.Info.Format.Size)
+		co.(*widget.Label).SetText(lang.L("size") + file.GetInfo().Format.Size)
 	default:
 		stream := getStreamByID(file, id)
 		if stream != nil {
@@ -144,15 +145,15 @@ func generateStreamNodes(streams *[]ffprobe.Stream, prefix string) []widget.Tree
 	return nodes
 }
 
-func getStreamByID(file *fileinfo.FileInfo, id widget.TreeNodeID) *ffprobe.Stream {
+func getStreamByID(file fileinfo.FileInfo, id widget.TreeNodeID) *ffprobe.Stream {
 	i := int(id[1] - '0')
 	switch id[0] {
 	case 'v':
-		return &(*file.VideoStreams)[i]
+		return &(*file.GetVideoStreams())[i]
 	case 'a':
-		return &(*file.AudioStreams)[i]
+		return &(*file.GetAudioStreams())[i]
 	case 's':
-		return &(*file.SubtitleStreams)[i]
+		return &(*file.GetSubtitleStreams())[i]
 	}
 	return nil
 }

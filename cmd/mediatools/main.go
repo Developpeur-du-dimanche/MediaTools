@@ -1,7 +1,14 @@
 package main
 
-import "github.com/Developpeur-du-dimanche/MediaTools/internal/mediatools"
+import (
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/lang"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/mediatools"
+)
 
 func main() {
-	mediatools.Run()
+	a := app.New()
+	application := mediatools.NewApplication(a)
+	lang.AddTranslationsFS(mediatools.Translations, "localize")
+	application.Run()
 }

@@ -27,12 +27,12 @@ var conditions = []filter.ConditionContract{
 type FilterComponent struct {
 	choices      *[]*ConditionalWidget
 	container    *fyne.Container
-	fileList     *list.List[*fileinfo.FileInfo]
+	fileList     *list.List[fileinfo.FileInfo]
 	window       *fyne.Window
 	filterButton *widget.Button
 }
 
-func NewFilterComponent(window *fyne.Window, fileList *list.List[*fileinfo.FileInfo]) *FilterComponent {
+func NewFilterComponent(window *fyne.Window, fileList *list.List[fileinfo.FileInfo]) *FilterComponent {
 	return &FilterComponent{
 		choices:      &[]*ConditionalWidget{},
 		container:    container.NewVBox(),
@@ -87,9 +87,9 @@ func (f *FilterComponent) Filter() {
 	cd := dialog.NewCustomWithoutButtons("Please wait", treatmentOf, *f.window)
 	cd.Show()
 	for _, file := range f.fileList.GetItems() {
-		treatmentOf.SetText("file is currently being treated: " + file.Path + " please wait...")
+		treatmentOf.SetText("file is currently being treated: " + file.GetPath() + " please wait...")
 
-		data := file.Info
+		data := file.GetInfo()
 		isValid := false
 		for _, c := range *f.choices {
 
@@ -98,7 +98,7 @@ func (f *FilterComponent) Filter() {
 			}
 		}
 		if isValid {
-			output.AddItem(*file)
+			output.AddItem(file)
 		}
 	}
 
@@ -117,7 +117,7 @@ func (f *FilterComponent) Filter() {
 			return widget.NewLabel("template")
 		},
 		func(i widget.ListItemID, item fyne.CanvasObject) {
-			item.(*widget.Label).SetText(output.GetItem(i).Path)
+			item.(*widget.Label).SetText(output.GetItem(i).GetPath())
 		},
 	)
 

@@ -45,18 +45,18 @@ type ffmpegProgress struct {
 
 type MergeFiles struct {
 	MergeFilesContract
-	listFiles   *list.List[*fileinfo.FileInfo]
+	listFiles   *list.List[fileinfo.FileInfo]
 	inputFiles  []inputFiles
 	outputFile  string
-	window      fyne.Window
+	window      *fyne.Window
 	procesPopup *widget.PopUp
 	processText *widget.Label
 }
 
-func NewMergeFilesComponent(window *fyne.Window, fileList *list.List[*fileinfo.FileInfo]) *MergeFiles {
+func NewMergeFilesComponent(window *fyne.Window, fileList *list.List[fileinfo.FileInfo]) *MergeFiles {
 	return &MergeFiles{
 		listFiles:   fileList,
-		window:      *window,
+		window:      window,
 		processText: widget.NewLabel(""),
 	}
 }
@@ -91,7 +91,7 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 	refreshButton := widget.NewButton("Refresh", func() {
 		f.inputFiles = []inputFiles{}
 		for i, file := range f.listFiles.GetItems() {
-			f.inputFiles = append(f.inputFiles, inputFiles{file.Path, i, true})
+			f.inputFiles = append(f.inputFiles, inputFiles{file.GetPath(), i, true})
 		}
 		listFiles.Refresh()
 	})
@@ -106,7 +106,7 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 			widget.NewButtonWithIcon("", theme.FolderIcon(), func() {
 				dialogFolder := dialog.NewFolderOpen(func(uc fyne.ListableURI, err error) {
 					if err != nil {
-						dialog.ShowError(err, f.window)
+						dialog.ShowError(err, *f.window)
 						return
 					}
 
@@ -116,8 +116,8 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 
 					f.outputFile = uc.Path()
 					outputFile.SetText(f.outputFile)
-				}, f.window)
-				size := (f.window).Canvas().Size()
+				}, *f.window)
+				size := (*f.window).Canvas().Size()
 				dialogFolder.Resize(fyne.NewSize(size.Width-150, size.Height-150))
 				dialogFolder.Show()
 			}),
@@ -128,7 +128,7 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 		listFiles,
 	)
 
-	f.procesPopup = widget.NewModalPopUp(f.processText, f.window.Canvas())
+	f.procesPopup = widget.NewModalPopUp(f.processText, (*f.window).Canvas())
 
 	return content
 }
@@ -155,7 +155,7 @@ func (f *MergeFiles) Merge() {
 
 	err := f.MergeFiles(finalInputFiles, f.outputFile+"output_"+finalInputFiles[0])
 	if err != nil {
-		dialog.ShowError(err, f.window)
+		dialog.ShowError(err, *f.window)
 	}
 }
 
