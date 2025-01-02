@@ -33,5 +33,7 @@
     "settings": "Paramètres",
     "scanning_folder": "Analyse du dossier...",
     "no_folder_selected": "Aucun dossier sélectionné",
-    "loading": "Chargement..."
+    "loading": "Chargement...",
+    "close": "Fermer",
+    "save": "Enregistrer"
 }

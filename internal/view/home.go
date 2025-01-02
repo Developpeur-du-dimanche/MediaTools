@@ -12,20 +12,21 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/configuration"
 	"github.com/kbinani/screenshot"
 )
 
 type HomeView struct {
-	window fyne.Window
-	list   *components.FileListComponent
+	window        fyne.Window
+	list          *components.FileListComponent
+	configuration configuration.Configuration
 }
 
-var acceptedExtensions = []string{".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".webm", ".mpg", ".mpeg", ".wav", ".flac", ".ogg"}
-
-func NewHomeView(window fyne.Window) View {
+func NewHomeView(window fyne.Window, configuration configuration.Configuration) View {
 
 	home := &HomeView{
-		window: window,
+		window:        window,
+		configuration: configuration,
 	}
 
 	screen := screenshot.GetDisplayBounds(0)
@@ -76,9 +77,34 @@ func (h *HomeView) GetWindow() *fyne.Window {
 }
 
 func (h *HomeView) GetMainMenu() *fyne.MainMenu {
+	extentionsEntry := widget.NewEntry()
+	extentionsEntry.SetText(strings.Join(h.configuration.GetList("extension"), ","))
 	return fyne.NewMainMenu(
 		fyne.NewMenu("File",
-			fyne.NewMenuItem("Settings", nil),
+			fyne.NewMenuItem("Settings", func() {
+				// create settings view
+				view := container.NewBorder(
+					widget.NewLabel("Settings"),
+					nil,
+					nil,
+					nil,
+					container.NewHSplit(
+						widget.NewLabel("Extension:"),
+						extentionsEntry,
+					),
+				)
+				// show popup with settings
+				popup := dialog.NewCustom("Settings", "Save", view, h.window)
+
+				size := (*h.GetWindow()).Canvas().Size()
+				popup.Resize(fyne.NewSize(size.Width-150, size.Height-150))
+				popup.Show()
+
+				popup.SetOnClosed(func() {
+					ext := strings.Split(strings.Trim(extentionsEntry.Text, " "), ",")
+					h.configuration.SaveExtensions(ext)
+				})
+			}),
 		),
 	)
 }
@@ -140,7 +166,7 @@ func (h *HomeView) OpenFolderDialog() *dialog.FileDialog {
 						return nil
 					}
 
-					if isValidExtension(filepath.Ext(path)) {
+					if h.configuration.IsValidExtension(filepath.Ext(path)) {
 						h.list.AddFile(path)
 					}
 					return nil
@@ -148,7 +174,7 @@ func (h *HomeView) OpenFolderDialog() *dialog.FileDialog {
 			} else {
 				scanFolder.SetText("Scanning folder: " + file.Path())
 				fmt.Printf("ext: %s\n", file.Extension())
-				if isValidExtension(strings.ToLower(file.Extension())) {
+				if h.configuration.IsValidExtension(strings.ToLower(file.Extension())) {
 					h.list.AddFile(file.Path())
 				}
 			}
@@ -159,13 +185,4 @@ func (h *HomeView) OpenFolderDialog() *dialog.FileDialog {
 	size := (*h.GetWindow()).Canvas().Size()
 	dialog.Resize(fyne.NewSize(size.Width-150, size.Height-150))
 	return dialog
-}
-
-func isValidExtension(extension string) bool {
-	for _, ext := range acceptedExtensions {
-		if ext == extension {
-			return true
-		}
-	}
-	return false
 }

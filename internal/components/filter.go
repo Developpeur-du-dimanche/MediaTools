@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/filter"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
@@ -37,7 +38,7 @@ func NewFilterComponent(window *fyne.Window, fileList *list.List[fileinfo.FileIn
 		container:    container.NewVBox(),
 		fileList:     fileList,
 		window:       window,
-		filterButton: widget.NewButton("Filter", nil),
+		filterButton: widget.NewButton(lang.L("filter"), nil),
 	}
 }
 

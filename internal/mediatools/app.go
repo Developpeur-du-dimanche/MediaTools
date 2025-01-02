@@ -2,19 +2,21 @@ package mediatools
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/configuration"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/view"
 )
 
 type Application struct {
-	app    fyne.App
-	window fyne.Window
+	app           fyne.App
+	window        fyne.Window
+	configuration configuration.Configuration
 }
 
-func NewApplication(app fyne.App) *Application {
+func NewApplication(app fyne.App, configuration configuration.Configuration) *Application {
 	return &Application{
-		app:    app,
-		window: app.NewWindow("MediaTools"),
+		app:           app,
+		window:        app.NewWindow("MediaTools"),
+		configuration: configuration,
 	}
 }
 
@@ -23,12 +25,7 @@ func (a *Application) SetView(view view.View) {
 }
 
 func (a *Application) Run() {
-	app.SetMetadata(fyne.AppMetadata{
-		ID:   "com.github.developpeur-du-dimanche.mediatools",
-		Name: "MediaTools",
-		Icon: fyne.NewStaticResource("Icon.svg", []byte(logo)),
-	})
-	homeView := view.NewHomeView(a.window)
+	homeView := view.NewHomeView(a.window, a.configuration)
 	a.SetView(homeView)
 	homeView.ShowAndRun()
 

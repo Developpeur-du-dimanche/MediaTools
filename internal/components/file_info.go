@@ -35,8 +35,8 @@ func NewFileInfoComponent(file fileinfo.FileInfo) *FileInfoComponent {
 func (f *FileInfoComponent) CreateRenderer() fyne.WidgetRenderer {
 	b := container.NewBorder(
 		container.NewVBox(
-			widget.NewLabel(lang.L("folder")+f.file.GetFolder()),
-			widget.NewLabel("Filename: "+f.file.GetFilename()),
+			widget.NewLabel(lang.L("folder")+": "+f.file.GetFolder()),
+			widget.NewLabel(lang.L("file")+": "+f.file.GetFilename()),
 		),
 		nil,
 		nil,
