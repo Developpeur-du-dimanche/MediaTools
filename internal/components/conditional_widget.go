@@ -14,9 +14,8 @@ type ConditionalWidget struct {
 	container *fyne.Container
 }
 
-var choices = make([]string, len(conditions))
-
-func NewConditionalWidget() *ConditionalWidget {
+func NewConditionalWidget(conditions []filter.ConditionContract) *ConditionalWidget {
+	choices := make([]string, len(conditions))
 	for i, condition := range conditions {
 		choices[i] = condition.Name()
 	}

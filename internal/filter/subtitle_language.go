@@ -7,14 +7,14 @@ import (
 )
 
 type SubtitleLanguageFilter struct {
-	Filter
+	GlobalFilter
 }
 
 func NewSubtitleLanguageFilter() *SubtitleLanguageFilter {
 	return &SubtitleLanguageFilter{}
 }
 
-func (c *SubtitleLanguageFilter) Check(data *ffprobe.ProbeData) bool {
+func (c *SubtitleLanguageFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
 	for _, s := range data.Streams {
 		// if is subtitle stream and language matches
 		if s.CodecType == "subtitle" && c.CheckString(s.Tags.Language) {
@@ -22,6 +22,10 @@ func (c *SubtitleLanguageFilter) Check(data *ffprobe.ProbeData) bool {
 		}
 	}
 	return false
+}
+
+func (c *SubtitleLanguageFilter) CheckStream(data *ffprobe.Stream) bool {
+	return data.CodecType == "subtitle" && c.CheckString(data.Tags.Language)
 }
 
 func (c *SubtitleLanguageFilter) Name() string {
@@ -34,8 +38,10 @@ func (c *SubtitleLanguageFilter) GetPossibleConditions() []string {
 
 func (c *SubtitleLanguageFilter) New() ConditionContract {
 	return &SubtitleLanguageFilter{
-		Filter{
-			Value: c.Value,
+		GlobalFilter{
+			Filter: Filter{
+				Value: c.Value,
+			},
 		},
 	}
 }
@@ -54,12 +60,4 @@ func (c *SubtitleLanguageFilter) GetEntry() fyne.Widget {
 		c.Value = s
 	}
 	return entry
-}
-
-func (c *SubtitleLanguageFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
-	return true
-}
-
-func (c *SubtitleLanguageFilter) CheckStream(data *ffprobe.Stream) bool {
-	return false
 }

@@ -9,14 +9,14 @@ import (
 )
 
 type ContainerFilter struct {
-	Filter
+	GlobalFilter
 }
 
 func NewContainerFilter() ConditionContract {
 	return &ContainerFilter{}
 }
 
-func (c *ContainerFilter) Check(data *ffprobe.ProbeData) bool {
+func (c *ContainerFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
 	if data == nil || data.Format == nil || data.Format.Filename == "" {
 		return false
 	}
@@ -24,7 +24,11 @@ func (c *ContainerFilter) Check(data *ffprobe.ProbeData) bool {
 	// get extension
 	extension := data.Format.Filename[strings.LastIndex(data.Format.Filename, ".")+1:]
 
-	return c.CheckString(extension)
+	return c.Filter.CheckString(extension)
+}
+
+func (c *ContainerFilter) CheckStream(data *ffprobe.Stream) bool {
+	return false
 }
 
 func (c *ContainerFilter) GetPossibleConditions() []string {
@@ -37,8 +41,10 @@ func (c *ContainerFilter) Name() string {
 
 func (c *ContainerFilter) New() ConditionContract {
 	return &ContainerFilter{
-		Filter{
-			Value: c.Value,
+		GlobalFilter{
+			Filter: Filter{
+				Value: c.Value,
+			},
 		},
 	}
 }
@@ -53,12 +59,4 @@ func (c *ContainerFilter) GetEntry() fyne.Widget {
 
 	})
 	return entry
-}
-
-func (c *ContainerFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
-	return true
-}
-
-func (c *ContainerFilter) CheckStream(data *ffprobe.Stream) bool {
-	return false
 }

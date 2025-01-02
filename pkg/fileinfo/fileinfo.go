@@ -2,6 +2,7 @@ package fileinfo
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"time"
 
@@ -13,9 +14,9 @@ type FileInfo interface {
 	GetFolder() string
 	GetPath() string
 	GetInfo() *ffprobe.ProbeData
-	GetVideoStreams() *[]ffprobe.Stream
-	GetAudioStreams() *[]ffprobe.Stream
-	GetSubtitleStreams() *[]ffprobe.Stream
+	GetVideoStreams() []ffprobe.Stream
+	GetAudioStreams() []ffprobe.Stream
+	GetSubtitleStreams() []ffprobe.Stream
 	Equals(other FileInfo) bool
 }
 
@@ -23,9 +24,9 @@ type fileInfo struct {
 	Path            string
 	Folder          string
 	Filename        string
-	VideoStreams    *[]ffprobe.Stream
-	AudioStreams    *[]ffprobe.Stream
-	SubtitleStreams *[]ffprobe.Stream
+	VideoStreams    []ffprobe.Stream
+	AudioStreams    []ffprobe.Stream
+	SubtitleStreams []ffprobe.Stream
 	Info            *ffprobe.ProbeData
 }
 
@@ -36,7 +37,7 @@ func NewFileInfo(path string) (FileInfo, error) {
 	data, err := ffprobe.ProbeURL(ctx, path)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to probe file '%s': %w", path, err)
 	}
 
 	var videoStreams []ffprobe.Stream
@@ -59,9 +60,9 @@ func NewFileInfo(path string) (FileInfo, error) {
 		Filename:        getFilename(path),
 		Folder:          getFolder(path),
 		Info:            data,
-		VideoStreams:    &videoStreams,
-		AudioStreams:    &audioStreams,
-		SubtitleStreams: &subtitleStreams,
+		VideoStreams:    videoStreams,
+		AudioStreams:    audioStreams,
+		SubtitleStreams: subtitleStreams,
 	}, nil
 }
 
@@ -91,15 +92,15 @@ func (f *fileInfo) GetInfo() *ffprobe.ProbeData {
 	return f.Info
 }
 
-func (f *fileInfo) GetVideoStreams() *[]ffprobe.Stream {
+func (f *fileInfo) GetVideoStreams() []ffprobe.Stream {
 	return f.VideoStreams
 }
 
-func (f *fileInfo) GetAudioStreams() *[]ffprobe.Stream {
+func (f *fileInfo) GetAudioStreams() []ffprobe.Stream {
 	return f.AudioStreams
 }
 
-func (f *fileInfo) GetSubtitleStreams() *[]ffprobe.Stream {
+func (f *fileInfo) GetSubtitleStreams() []ffprobe.Stream {
 	return f.SubtitleStreams
 }
 

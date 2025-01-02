@@ -7,15 +7,19 @@ import (
 )
 
 type BitrateFilter struct {
-	Filter
+	GlobalFilter
 }
 
 func NewBitrateFilter() *BitrateFilter {
 	return &BitrateFilter{}
 }
 
-func (c *BitrateFilter) Check(data *ffprobe.ProbeData) bool {
-	return c.CheckStringToInt(data.Format.BitRate)
+func (c *BitrateFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
+	return c.Filter.CheckStringToInt(data.Format.BitRate)
+}
+
+func (c *BitrateFilter) CheckStream(data *ffprobe.Stream) bool {
+	return c.Filter.CheckStringToInt(data.BitRate)
 }
 
 func (c *BitrateFilter) Name() string {
@@ -28,8 +32,10 @@ func (c *BitrateFilter) GetPossibleConditions() []string {
 
 func (c *BitrateFilter) New() ConditionContract {
 	return &BitrateFilter{
-		Filter{
-			Value: c.Value,
+		GlobalFilter{
+			Filter: Filter{
+				Value: c.Value,
+			},
 		},
 	}
 }
@@ -45,12 +51,4 @@ func (c *BitrateFilter) GetEntry() fyne.Widget {
 		c.Value = s
 	}
 	return entry
-}
-
-func (c *BitrateFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
-	return true
-}
-
-func (c *BitrateFilter) CheckStream(data *ffprobe.Stream) bool {
-	return false
 }

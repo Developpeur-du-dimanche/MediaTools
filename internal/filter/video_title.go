@@ -14,7 +14,7 @@ func NewVideoTitleFilter() *VideoTitleFilter {
 	return &VideoTitleFilter{}
 }
 
-func (c *VideoTitleFilter) Check(data *ffprobe.ProbeData) bool {
+func (c *VideoTitleFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
 	for _, s := range data.Streams {
 		// if is video stream and title matches
 		if s.CodecType == "video" && c.CheckString(s.Tags.Title) {
@@ -22,6 +22,10 @@ func (c *VideoTitleFilter) Check(data *ffprobe.ProbeData) bool {
 		}
 	}
 	return false
+}
+
+func (c *VideoTitleFilter) CheckStream(data *ffprobe.Stream) bool {
+	return data.CodecType == "video" && c.CheckString(data.Tags.Title)
 }
 
 func (c *VideoTitleFilter) Name() string {
@@ -54,12 +58,4 @@ func (c *VideoTitleFilter) GetEntry() fyne.Widget {
 		c.Value = s
 	}
 	return entry
-}
-
-func (c *VideoTitleFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
-	return true
-}
-
-func (c *VideoTitleFilter) CheckStream(data *ffprobe.Stream) bool {
-	return false
 }

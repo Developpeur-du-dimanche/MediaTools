@@ -7,14 +7,14 @@ import (
 )
 
 type SubtitleTitleFilter struct {
-	Filter
+	GlobalFilter
 }
 
 func NewSubtitleTitleFilter() *SubtitleTitleFilter {
 	return &SubtitleTitleFilter{}
 }
 
-func (c *SubtitleTitleFilter) Check(data *ffprobe.ProbeData) bool {
+func (c *SubtitleTitleFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
 	for _, s := range data.Streams {
 		// if is subtitle stream and title matches
 		if s.CodecType == "subtitle" && c.CheckString(s.Tags.Title) {
@@ -22,6 +22,10 @@ func (c *SubtitleTitleFilter) Check(data *ffprobe.ProbeData) bool {
 		}
 	}
 	return false
+}
+
+func (c *SubtitleTitleFilter) CheckStream(data *ffprobe.Stream) bool {
+	return data.CodecType == "subtitle" && c.CheckString(data.Tags.Title)
 }
 
 func (c *SubtitleTitleFilter) Name() string {
@@ -50,16 +54,10 @@ func (c *SubtitleTitleFilter) GetEntry() fyne.Widget {
 
 func (c *SubtitleTitleFilter) New() ConditionContract {
 	return &SubtitleLanguageFilter{
-		Filter{
-			Value: c.Value,
+		GlobalFilter{
+			Filter: Filter{
+				Value: c.Value,
+			},
 		},
 	}
-}
-
-func (c *SubtitleTitleFilter) CheckGlobal(data *ffprobe.ProbeData) bool {
-	return true
-}
-
-func (c *SubtitleTitleFilter) CheckStream(data *ffprobe.Stream) bool {
-	return false
 }

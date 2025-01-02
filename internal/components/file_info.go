@@ -82,19 +82,19 @@ func (f *FileInfoComponent) isBranch(id widget.TreeNodeID) bool {
 		return true
 	}
 
-	for i := 0; i < len(*file.GetVideoStreams()); i++ {
+	for i := 0; i < len(file.GetVideoStreams()); i++ {
 		if id == "Video "+fmt.Sprint(i) {
 			return true
 		}
 	}
 
-	for i := 0; i < len(*file.GetAudioStreams()); i++ {
+	for i := 0; i < len(file.GetAudioStreams()); i++ {
 		if id == "Audio "+fmt.Sprint(i) {
 			return true
 		}
 	}
 
-	for i := 0; i < len(*file.GetSubtitleStreams()); i++ {
+	for i := 0; i < len(file.GetSubtitleStreams()); i++ {
 		if id == "Subtitle "+fmt.Sprint(i) {
 			return true
 		}
@@ -123,37 +123,36 @@ func (f *FileInfoComponent) update(id widget.TreeNodeID, isBranch bool, co fyne.
 		co.(*widget.Label).SetText(lang.L("size") + file.GetInfo().Format.Size)
 	default:
 		stream := getStreamByID(file, id)
-		if stream != nil {
-			switch id[0] {
-			case 'v':
-				info.NewVideoInfo(id).From(co.(*widget.Label), stream, id)
-			case 'a':
-				info.NewAudioInfo(id).From(co.(*widget.Label), stream, id)
-			case 's':
-				info.NewSubtitleInfo(id).From(co.(*widget.Label), stream, id)
-			}
+		switch id[0] {
+		case 'v':
+			info.NewVideoInfo(id).From(co.(*widget.Label), &stream, id)
+		case 'a':
+			info.NewAudioInfo(id).From(co.(*widget.Label), &stream, id)
+		case 's':
+			info.NewSubtitleInfo(id).From(co.(*widget.Label), &stream, id)
 		}
 	}
 }
 
-func generateStreamNodes(streams *[]ffprobe.Stream, prefix string) []widget.TreeNodeID {
-	nodes := []widget.TreeNodeID{}
-	for i := 0; i < len(*streams); i++ {
+func generateStreamNodes(streams []ffprobe.Stream, prefix string) []widget.TreeNodeID {
+	nodes := make([]widget.TreeNodeID, len(streams))
+	for i := 0; i < len(streams); i++ {
 		str := prefix + " " + fmt.Sprint(i)
-		nodes = append(nodes, str)
+		nodes[i] = str
 	}
 	return nodes
 }
 
-func getStreamByID(file fileinfo.FileInfo, id widget.TreeNodeID) *ffprobe.Stream {
+func getStreamByID(file fileinfo.FileInfo, id widget.TreeNodeID) ffprobe.Stream {
 	i := int(id[1] - '0')
 	switch id[0] {
 	case 'v':
-		return &(*file.GetVideoStreams())[i]
+		return file.GetVideoStreams()[i]
 	case 'a':
-		return &(*file.GetAudioStreams())[i]
+		return file.GetAudioStreams()[i]
 	case 's':
-		return &(*file.GetSubtitleStreams())[i]
+		return file.GetSubtitleStreams()[i]
+	default:
+		return ffprobe.Stream{}
 	}
-	return nil
 }

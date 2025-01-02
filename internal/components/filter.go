@@ -8,24 +8,23 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/filter"
-	globalfilter "github.com/Developpeur-du-dimanche/MediaTools/internal/filter/global"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 )
 
 var conditions = []filter.ConditionContract{
-	globalfilter.NewContainerFilter(),
-	globalfilter.NewAudioLanguageFilter(),
-	globalfilter.NewBitrateFilter(),
-	globalfilter.NewSubtitleForcedFilter(),
-	globalfilter.NewSubtitleLanguageFilter(),
-	globalfilter.NewSubtitleTitleFilter(),
-	globalfilter.NewSubtitleCodecFilter(),
-	globalfilter.NewVideoTitleFilter(),
+	filter.NewContainerFilter(),
+	filter.NewAudioLanguageFilter(),
+	filter.NewBitrateFilter(),
+	filter.NewSubtitleForcedFilter(),
+	filter.NewSubtitleLanguageFilter(),
+	filter.NewSubtitleTitleFilter(),
+	filter.NewSubtitleCodecFilter(),
+	filter.NewVideoTitleFilter(),
 }
 
 type FilterComponent struct {
-	choices      *[]*ConditionalWidget
+	choices      []*ConditionalWidget
 	container    *fyne.Container
 	fileList     *list.List[fileinfo.FileInfo]
 	window       *fyne.Window
@@ -34,7 +33,7 @@ type FilterComponent struct {
 
 func NewFilterComponent(window *fyne.Window, fileList *list.List[fileinfo.FileInfo]) *FilterComponent {
 	return &FilterComponent{
-		choices:      &[]*ConditionalWidget{},
+		choices:      []*ConditionalWidget{},
 		container:    container.NewVBox(),
 		fileList:     fileList,
 		window:       window,
@@ -45,14 +44,14 @@ func NewFilterComponent(window *fyne.Window, fileList *list.List[fileinfo.FileIn
 func (f *FilterComponent) Content() fyne.CanvasObject {
 
 	addFilterButton := widget.NewButton("Add filter", func() {
-		nc := NewConditionalWidget()
-		*f.choices = append(*f.choices, nc)
+		nc := NewConditionalWidget(conditions)
+		f.choices = append(f.choices, nc)
 		f.container.Add(nc)
 	})
 
 	removeFilterButton := widget.NewButton("Remove filter", func() {
-		if len(*f.choices) > 0 {
-			*f.choices = (*f.choices)[:len(*f.choices)-1]
+		if len(f.choices) > 0 {
+			f.choices = f.choices[:len(f.choices)-1]
 			f.container.Remove(f.container.Objects[len(f.container.Objects)-1])
 		}
 	})
@@ -76,7 +75,7 @@ func (f *FilterComponent) Content() fyne.CanvasObject {
 func (f *FilterComponent) Filter() {
 	f.filterButton.Disable()
 
-	if f.fileList.GetLength() == 0 || len(*f.choices) == 0 {
+	if f.fileList.GetLength() == 0 || len(f.choices) == 0 {
 		dialog.ShowError(errors.New("no file selected or no filter added"), *f.window)
 		f.filterButton.Enable()
 		return
@@ -91,7 +90,7 @@ func (f *FilterComponent) Filter() {
 
 		data := file.GetInfo()
 		isValid := false
-		for _, c := range *f.choices {
+		for _, c := range f.choices {
 
 			if c.choice.CheckGlobal(data) {
 				isValid = true
