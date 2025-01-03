@@ -4,6 +4,10 @@
         "equals",
         "not equals"
     ],
-    "jsonPath": "$.format.bitrate",
-    "type": "string"
+    "jsonPath": "$.Extension",
+    "type": "string",
+    "values": [
+        "mkv",
+        "mp4"
+    ]
 }

@@ -7,26 +7,27 @@ import (
 	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/helper"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 )
 
 type FileListComponent struct {
 	widget.BaseWidget
-	files       *list.List[fileinfo.FileInfo]
+	files       *list.List[*helper.FileMetadata]
 	list        *widget.List
 	c           chan string
-	OnFileClick func(file fileinfo.FileInfo)
+	OnFileClick func(file *helper.FileMetadata)
 }
 
 func NewFileListComponent(parent *fyne.Window) *FileListComponent {
-	files := list.NewList[fileinfo.FileInfo]()
+	files := list.NewList[*helper.FileMetadata]()
 	list := new(widget.List)
 	c := &FileListComponent{
 		files:       files,
 		list:        list,
 		c:           make(chan string),
-		OnFileClick: func(file fileinfo.FileInfo) {},
+		OnFileClick: func(file *helper.FileMetadata) {},
 	}
 
 	c.list = widget.NewList(
@@ -47,7 +48,7 @@ func NewFileListComponent(parent *fyne.Window) *FileListComponent {
 				d.Resize(fyne.NewSize(400, 400))
 				d.Show()
 			}
-			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(files.GetItem(i).GetFilename())
+			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(files.GetItem(i).FileName)
 		},
 	)
 
@@ -65,7 +66,14 @@ func NewFileListComponent(parent *fyne.Window) *FileListComponent {
 				continue
 			}
 
-			files.AddItem(f)
+			metadata, err := helper.NewFileMetadata(f.GetInfo())
+
+			if err != nil {
+				dialog.ShowError(err, *parent)
+				continue
+			}
+
+			files.AddItem(metadata)
 			c.list.Refresh()
 		}
 	}()
@@ -82,11 +90,11 @@ func (f *FileListComponent) Clear() {
 	f.list.Refresh()
 }
 
-func (f *FileListComponent) RemoveFile(file fileinfo.FileInfo) {
+func (f *FileListComponent) RemoveFile(file *helper.FileMetadata) {
 	f.files.RemoveItem(file)
 }
 
-func (f *FileListComponent) GetFiles() *list.List[fileinfo.FileInfo] {
+func (f *FileListComponent) GetFiles() *list.List[*helper.FileMetadata] {
 	return f.files
 }
 

@@ -7,8 +7,8 @@ import (
 	"io/fs"
 	"log"
 
-	"github.com/yalp/jsonpath"
-	"gopkg.in/vansante/go-ffprobe.v2"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/helper"
+	"github.com/ohler55/ojg/jp"
 )
 
 type Condition string
@@ -36,14 +36,17 @@ type Filters struct {
 
 type Filter interface {
 	GetStringCondition() []string
-	Check(data *ffprobe.ProbeData, value string) bool
+	HasDefaultValues() bool
+	GetDefaultValues() []string
+	Check(data *helper.FileMetadata, value string) bool
 }
 
 type filter struct {
-	Name       string      `json:"name"`
-	Conditions []Condition `json:"conditions"`
-	JsonPath   string      `json:"jsonPath"`
-	Type       FilterType  `json:"type"`
+	Name          string      `json:"name"`
+	Conditions    []Condition `json:"conditions"`
+	JsonPath      string      `json:"jsonPath"`
+	Type          FilterType  `json:"type"`
+	DefaultValues []string    `json:"values,omitempty" default:"[]"`
 }
 
 type Parser interface {
@@ -103,41 +106,48 @@ func (p parser) parseFile(path string) (filter, error) {
 	return f, nil
 }
 
+func (f filter) HasDefaultValues() bool {
+	return len(f.DefaultValues) > 0
+}
+
+func (f filter) GetDefaultValues() []string {
+	return f.DefaultValues
+}
+
 // example of jsonPath : $.Format.BitRate
 // example of jsonPath : $.Streams[0].Tags.Language
 // where $ is the root of the json
 // and . is the separator
-func (f filter) Check(data *ffprobe.ProbeData, value string) bool {
+func (f filter) Check(data *helper.FileMetadata, value string) bool {
 
 	// Convertit les données en JSON
-	dataJSON, err := json.Marshal(data)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// convertir les données en interface{} pour jsonpath
-	var dataInterface interface{}
-
-	err = json.Unmarshal(dataJSON, &dataInterface)
-
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	// Compile le chemin JSONPath
-	result, err := jsonpath.Read(dataInterface, f.JsonPath)
+	parse, err := jp.ParseString(f.JsonPath)
 
 	if err != nil {
 		log.Default().Println(err)
 		return false
 	}
 
-	// Convertit le résultat en chaîne de caractères pour comparaison
-	resultStr := fmt.Sprintf("%v", result)
+	results := parse.Get(data)
 
-	// Vérifie si le résultat correspond à la valeur attendue
-	return resultStr == value
+	if len(results) == 0 {
+		return false
+	}
+
+	// Convertit le résultat en chaîne de caractères pour comparaison
+
+	for _, result := range results {
+		resultStr := fmt.Sprintf("%v", result)
+
+		if resultStr == value {
+			return true
+		}
+	}
+
+	return false
+
 }
 
 func (f filter) GetStringCondition() []string {

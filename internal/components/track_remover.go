@@ -6,19 +6,19 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/helper"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
 type TrackRemoverComponent struct {
 	container         *fyne.Container
-	fileList          *list.List[fileinfo.FileInfo]
+	fileList          *list.List[*helper.FileMetadata]
 	window            *fyne.Window
 	removeTrackButton *widget.Button
 }
 
-func NewTrackRemoverComponent(window *fyne.Window, fileList *list.List[fileinfo.FileInfo]) *TrackRemoverComponent {
+func NewTrackRemoverComponent(window *fyne.Window, fileList *list.List[*helper.FileMetadata]) Component {
 	return &TrackRemoverComponent{
 		container:         container.NewVBox(),
 		fileList:          fileList,
@@ -153,7 +153,7 @@ func (f *TrackRemoverComponent) RemoveTrack(trackRemover *[]fyne.CanvasObject) {
 					}
 				}
 			}*/
-			fmt.Println(file.GetPath())
+			fmt.Println(file.FileName)
 		}
 	}
 }

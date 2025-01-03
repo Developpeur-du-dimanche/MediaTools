@@ -8,7 +8,10 @@ require (
 	gopkg.in/vansante/go-ffprobe.v2 v2.1.1
 )
 
-require github.com/yalp/jsonpath v0.0.0-20180802001716-5cc68e5049a0 // indirect
+require (
+	github.com/ohler55/ojg v1.26.0 // indirect
+	github.com/yalp/jsonpath v0.0.0-20180802001716-5cc68e5049a0 // indirect
+)
 
 require (
 	fyne.io/systray v1.11.0 // indirect

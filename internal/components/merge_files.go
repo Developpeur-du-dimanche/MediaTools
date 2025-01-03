@@ -18,7 +18,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/customs"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/helper"
-	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 )
 
@@ -46,7 +45,7 @@ type ffmpegProgress struct {
 
 type MergeFiles struct {
 	MergeFilesContract
-	listFiles   *list.List[fileinfo.FileInfo]
+	listFiles   *list.List[*helper.FileMetadata]
 	inputFiles  []inputFiles
 	outputFile  string
 	window      *fyne.Window
@@ -54,7 +53,7 @@ type MergeFiles struct {
 	processText *widget.Label
 }
 
-func NewMergeFilesComponent(window *fyne.Window, fileList *list.List[fileinfo.FileInfo]) *MergeFiles {
+func NewMergeFilesComponent(window *fyne.Window, fileList *list.List[*helper.FileMetadata]) Component {
 	return &MergeFiles{
 		listFiles:   fileList,
 		window:      window,
@@ -92,7 +91,7 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 	refreshButton := widget.NewButton(lang.L("refresh"), func() {
 		f.inputFiles = []inputFiles{}
 		for i, file := range f.listFiles.GetItems() {
-			f.inputFiles = append(f.inputFiles, inputFiles{file.GetPath(), i, true})
+			f.inputFiles = append(f.inputFiles, inputFiles{file.FileName, i, true})
 		}
 		listFiles.Refresh()
 	})

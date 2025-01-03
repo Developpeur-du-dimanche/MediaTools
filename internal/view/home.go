@@ -44,7 +44,7 @@ func NewHomeView(window fyne.Window, configuration configuration.Configuration) 
 
 func (h HomeView) Content() fyne.CanvasObject {
 
-	c := container.NewBorder(
+	body := container.NewBorder(
 		container.NewHBox(
 			widget.NewButtonWithIcon("", theme.FolderIcon(), func() {
 				h.OpenFolderDialog().Show()
@@ -62,11 +62,15 @@ func (h HomeView) Content() fyne.CanvasObject {
 		h.list,
 	)
 
-	c.Resize((h.window.Canvas().Size()))
-	layout := container.NewAdaptiveGrid(2, c, container.NewAppTabs(
-		container.NewTabItem(lang.L("filter"), components.NewFilterComponent(&h.window, h.list.GetFiles()).Content()),
-		container.NewTabItem(lang.L("track_remover"), components.NewTrackRemoverComponent(&h.window, h.list.GetFiles()).Content()),
-		container.NewTabItem(lang.L("merge_files"), components.NewMergeFilesComponent(&h.window, h.list.GetFiles()).Content()),
+	body.Resize((h.window.Canvas().Size()))
+
+	layout := container.NewAdaptiveGrid(2, body, components.NewCustomAppTabs(&h.window, h.list.GetFiles()).
+		AddTabItem(
+			lang.L("filter"), components.NewFilterComponent,
+		).AddTabItem(
+		lang.L("track_remover"), components.NewTrackRemoverComponent,
+	).AddTabItem(
+		lang.L("merge_files"), components.NewMergeFilesComponent,
 	))
 
 	return layout

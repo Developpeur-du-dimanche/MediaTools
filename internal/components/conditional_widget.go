@@ -14,6 +14,7 @@ type ConditionalWidget struct {
 	choice    jsonfilter.Filter
 	container *fyne.Container
 	condition string
+	value     string
 }
 
 func NewConditionalWidget(filters *jsonfilter.Filters) *ConditionalWidget {
@@ -44,12 +45,31 @@ func NewConditionalWidget(filters *jsonfilter.Filters) *ConditionalWidget {
 				})
 				choiceWidget.SetSelectedIndex(0)
 				c.container.Objects[1] = choiceWidget
+
+				if filter.HasDefaultValues() {
+					value.Enable()
+					c.value = filter.GetDefaultValues()[0]
+					valueWidget := widget.NewSelect(filter.GetDefaultValues(), func(s string) {
+						c.value = s
+					})
+					valueWidget.SetSelectedIndex(0)
+					c.container.Objects[2] = valueWidget
+					break
+				}
+
 				switch filter.Type {
 				case jsonfilter.Int:
 					c.container.Objects[2] = customs.NewNumericalEntry()
+					c.container.Objects[2].(*customs.NumericalEntry).OnChanged = func(s string) {
+						c.value = s
+					}
 				default:
 					c.container.Objects[2] = widget.NewEntry()
+					c.container.Objects[2].(*widget.Entry).OnChanged = func(s string) {
+						c.value = s
+					}
 				}
+
 				value.Enable()
 				break
 			}

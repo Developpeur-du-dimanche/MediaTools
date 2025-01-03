@@ -8,6 +8,6 @@
         "greater or equals",
         "less or equals"
     ],
-    "jsonPath": "$.format.bitrate",
+    "jsonPath": "$.Bitrate",
     "type": "int"
 }

@@ -4,6 +4,6 @@
         "equals",
         "not equals"
     ],
-    "jsonPath": "$.format.bitrate",
+    "jsonPath": "$.Subtitle[*].codec_name",
     "type": "int"
 }

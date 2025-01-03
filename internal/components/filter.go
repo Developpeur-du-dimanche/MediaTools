@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/widget"
 	mediatools_embed "github.com/Developpeur-du-dimanche/MediaTools"
-	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/helper"
 	jsonfilter "github.com/Developpeur-du-dimanche/MediaTools/pkg/filter"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 )
@@ -17,13 +17,13 @@ import (
 type FilterComponent struct {
 	choices      []*ConditionalWidget
 	container    *fyne.Container
-	fileList     *list.List[fileinfo.FileInfo]
+	fileList     *list.List[*helper.FileMetadata]
 	window       *fyne.Window
 	filterButton *widget.Button
 	filters      *jsonfilter.Filters
 }
 
-func NewFilterComponent(window *fyne.Window, fileList *list.List[fileinfo.FileInfo]) *FilterComponent {
+func NewFilterComponent(window *fyne.Window, fileList *list.List[*helper.FileMetadata]) Component {
 	jf := jsonfilter.NewParser(mediatools_embed.Filters)
 	p, err := jf.Parse()
 
@@ -83,18 +83,17 @@ func (f *FilterComponent) Filter() {
 		return
 	}
 
-	output := list.NewList[fileinfo.FileInfo]()
+	output := list.NewList[*helper.FileMetadata]()
 	treatmentOf := widget.NewLabel("file is currently being treated, please wait...")
 	cd := dialog.NewCustomWithoutButtons("Please wait", treatmentOf, *f.window)
 	cd.Show()
 	for _, file := range f.fileList.GetItems() {
-		treatmentOf.SetText("file is currently being treated: " + file.GetPath() + " please wait...")
+		treatmentOf.SetText("file is currently being treated: " + file.FileName + " please wait...")
 
-		data := file.GetInfo()
 		isValid := 0
 		for _, c := range f.choices {
 
-			if c.choice.Check(data, c.condition) {
+			if c.choice.Check(file, c.value) {
 				isValid++
 			}
 		}

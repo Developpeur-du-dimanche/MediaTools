@@ -3,22 +3,36 @@ package jsonfilter
 import (
 	"testing"
 
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/helper"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
 func TestCheck(t *testing.T) {
 	// Données JSON simulées
-	data := ffprobe.ProbeData{
-		Format: &ffprobe.Format{
-			BitRate: "128000",
-		},
-		Streams: []*ffprobe.Stream{
+
+	fileMetadata := helper.FileMetadata{
+		FileName:  "test.mp4",
+		Directory: "/tmp",
+		Bitrate:   "128000",
+		Audio: []*ffprobe.Stream{
 			{
 				TagList: ffprobe.Tags{
 					"Language": "eng",
 				},
 			},
+			{
+				TagList: ffprobe.Tags{
+					"Language": "ita",
+				},
+			},
 		},
+
+		Format:    "/path/to/test.mp4",
+		Codec:     "h264",
+		Duration:  0,
+		Size:      "1024",
+		Container: "mp4",
+		Extension: "mp4",
 	}
 
 	tests := []struct {
@@ -29,31 +43,37 @@ func TestCheck(t *testing.T) {
 	}{
 		{
 			name:     "Valid BitRate Check",
-			jsonPath: "$.format.bit_rate",
+			jsonPath: "$.Bitrate",
 			value:    "128000",
 			expected: true,
 		},
 		{
 			name:     "Invalid BitRate Check",
-			jsonPath: "$.format.BitRate",
+			jsonPath: "$.BitRate",
 			value:    "256000",
 			expected: false,
 		},
 		{
 			name:     "Valid Language Check",
-			jsonPath: "$.streams[0].tags.Language",
+			jsonPath: "$.Audio[*].TagList.Language",
 			value:    "eng",
 			expected: true,
 		},
 		{
+			name:     "Valid Language Check",
+			jsonPath: "$.Audio[*].TagList.Language",
+			value:    "ita",
+			expected: true,
+		},
+		{
 			name:     "Invalid Language Check",
-			jsonPath: "$.streams[0].tags.Language",
+			jsonPath: "$.Audio[0].TagList.Language",
 			value:    "fr",
 			expected: false,
 		},
 		{
 			name:     "Non-existent Path",
-			jsonPath: "$.format.NonExistentKey",
+			jsonPath: "$.NonExistentKey",
 			value:    "value",
 			expected: false,
 		},
@@ -71,7 +91,7 @@ func TestCheck(t *testing.T) {
 			f := filter{JsonPath: test.jsonPath}
 
 			// Appel de la méthode Check
-			result := f.Check(&data, test.value)
+			result := f.Check(&fileMetadata, test.value)
 
 			// Vérification du résultat
 			if result != test.expected {
