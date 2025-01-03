@@ -91,7 +91,7 @@ func TestCheck(t *testing.T) {
 			f := filter{JsonPath: test.jsonPath}
 
 			// Appel de la méthode Check
-			result := f.Check(&fileMetadata, test.value)
+			result := f.Check(&fileMetadata, Equals, test.value)
 
 			// Vérification du résultat
 			if result != test.expected {

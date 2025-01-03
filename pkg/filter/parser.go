@@ -38,7 +38,7 @@ type Filter interface {
 	GetStringCondition() []string
 	HasDefaultValues() bool
 	GetDefaultValues() []string
-	Check(data *helper.FileMetadata, value string) bool
+	Check(data *helper.FileMetadata, condition Condition, value string) bool
 }
 
 type filter struct {
@@ -118,7 +118,7 @@ func (f filter) GetDefaultValues() []string {
 // example of jsonPath : $.Streams[0].Tags.Language
 // where $ is the root of the json
 // and . is the separator
-func (f filter) Check(data *helper.FileMetadata, value string) bool {
+func (f filter) Check(data *helper.FileMetadata, condition Condition, value string) bool {
 
 	// Convertit les données en JSON
 
@@ -139,8 +139,40 @@ func (f filter) Check(data *helper.FileMetadata, value string) bool {
 	// Convertit le résultat en chaîne de caractères pour comparaison
 
 	for _, result := range results {
-		resultStr := fmt.Sprintf("%v", result)
 
+		switch condition {
+		case Equals:
+			if fmt.Sprintf("%v", result) == value {
+				return true
+			}
+		case Contains:
+			if fmt.Sprintf("%v", result) == value {
+				return true
+			}
+		case NotEquals:
+			if fmt.Sprintf("%v", result) != value {
+				return true
+			}
+		case GreaterThan:
+			if fmt.Sprintf("%v", result) > value {
+				return true
+			}
+		case LessThan:
+			if fmt.Sprintf("%v", result) < value {
+				return true
+			}
+		case GreaterOrEquals:
+			if fmt.Sprintf("%v", result) >= value {
+				return true
+			}
+		case LessOrEquals:
+			if fmt.Sprintf("%v", result) <= value {
+				return true
+			}
+
+		}
+
+		resultStr := fmt.Sprintf("%v", result)
 		if resultStr == value {
 			return true
 		}

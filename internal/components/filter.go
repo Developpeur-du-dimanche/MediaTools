@@ -93,7 +93,7 @@ func (f *FilterComponent) Filter() {
 		isValid := 0
 		for _, c := range f.choices {
 
-			if c.choice.Check(file, c.value) {
+			if c.choice.Check(file, jsonfilter.Condition(c.condition), c.value) {
 				isValid++
 			}
 		}

@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -10,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/info"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/helper"
+	"github.com/dustin/go-humanize"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
@@ -120,7 +122,14 @@ func (f *FileInfoComponent) update(id widget.TreeNodeID, isBranch bool, co fyne.
 	case "duration":
 		co.(*widget.Label).SetText("Duration: " + fmt.Sprint(file.Duration))
 	case "size":
-		co.(*widget.Label).SetText(lang.L("size") + file.Size)
+		// file.Size to uint64
+		size, err := strconv.ParseUint(file.Size, 10, 64)
+
+		if err != nil {
+			size = 0
+		}
+
+		co.(*widget.Label).SetText(fmt.Sprintf("%s : %s", lang.L("size"), humanize.Bytes(size)))
 	default:
 		stream := getStreamByID(file, id)
 		if stream == nil {
