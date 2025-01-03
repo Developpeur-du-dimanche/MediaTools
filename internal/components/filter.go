@@ -8,21 +8,11 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/widget"
-	"github.com/Developpeur-du-dimanche/MediaTools/internal/filter"
+	jsonembed "github.com/Developpeur-du-dimanche/MediaTools"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
+	jsonfilter "github.com/Developpeur-du-dimanche/MediaTools/pkg/filter"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 )
-
-var conditions = []filter.ConditionContract{
-	filter.NewContainerFilter(),
-	filter.NewAudioLanguageFilter(),
-	filter.NewBitrateFilter(),
-	filter.NewSubtitleForcedFilter(),
-	filter.NewSubtitleLanguageFilter(),
-	filter.NewSubtitleTitleFilter(),
-	filter.NewSubtitleCodecFilter(),
-	filter.NewVideoTitleFilter(),
-}
 
 type FilterComponent struct {
 	choices      []*ConditionalWidget
@@ -30,22 +20,31 @@ type FilterComponent struct {
 	fileList     *list.List[fileinfo.FileInfo]
 	window       *fyne.Window
 	filterButton *widget.Button
+	filters      *jsonfilter.Filters
 }
 
 func NewFilterComponent(window *fyne.Window, fileList *list.List[fileinfo.FileInfo]) *FilterComponent {
+	jf := jsonfilter.NewParser(jsonembed.Filters)
+	p, err := jf.Parse()
+
+	if err != nil {
+		dialog.ShowError(err, *window)
+	}
+
 	return &FilterComponent{
 		choices:      []*ConditionalWidget{},
 		container:    container.NewVBox(),
 		fileList:     fileList,
 		window:       window,
 		filterButton: widget.NewButton(lang.L("filter"), nil),
+		filters:      p,
 	}
 }
 
 func (f *FilterComponent) Content() fyne.CanvasObject {
 
 	addFilterButton := widget.NewButton("Add filter", func() {
-		nc := NewConditionalWidget(conditions)
+		nc := NewConditionalWidget(f.filters)
 		f.choices = append(f.choices, nc)
 		f.container.Add(nc)
 	})
@@ -93,7 +92,7 @@ func (f *FilterComponent) Filter() {
 		isValid := 0
 		for _, c := range f.choices {
 
-			if c.choice.CheckGlobal(data) {
+			if c.choice.Check(data, c.condition) {
 				isValid++
 			}
 		}

@@ -1,7 +1,6 @@
 package configuration
 
 import (
-	"fmt"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -23,8 +22,6 @@ func NewConfiguration(app fyne.App) Configuration {
 
 	preferences := app.Preferences()
 	extensions := preferences.StringList("extension")
-
-	fmt.Println("Extensions:", extensions)
 
 	if extensions == nil || len(extensions) == 0 {
 		extensions = []string{

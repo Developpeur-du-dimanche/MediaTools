@@ -1,0 +1,9 @@
+{
+    "name": "Audio Language",
+    "conditions": [
+        "equals",
+        "not equals"
+    ],
+    "jsonPath": "$.format.bitrate",
+    "type": "string"
+}

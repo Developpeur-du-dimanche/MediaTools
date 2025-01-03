@@ -1,15 +1,17 @@
 package components
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
+	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
 type TrackRemoverComponent struct {
-	choices           *[]*ConditionalWidget
 	container         *fyne.Container
 	fileList          *list.List[fileinfo.FileInfo]
 	window            *fyne.Window
@@ -18,7 +20,6 @@ type TrackRemoverComponent struct {
 
 func NewTrackRemoverComponent(window *fyne.Window, fileList *list.List[fileinfo.FileInfo]) *TrackRemoverComponent {
 	return &TrackRemoverComponent{
-		choices:           &[]*ConditionalWidget{},
 		container:         container.NewVBox(),
 		fileList:          fileList,
 		window:            window,
@@ -27,7 +28,7 @@ func NewTrackRemoverComponent(window *fyne.Window, fileList *list.List[fileinfo.
 }
 
 func (f *TrackRemoverComponent) Content() fyne.CanvasObject {
-	var objects []fyne.CanvasObject = []fyne.CanvasObject{}
+	/*var objects []fyne.CanvasObject = []fyne.CanvasObject{}
 	tree := widget.NewTree(
 		func(id widget.TreeNodeID) []widget.TreeNodeID {
 			switch id {
@@ -70,25 +71,35 @@ func (f *TrackRemoverComponent) Content() fyne.CanvasObject {
 			switch id {
 			case "v_id":
 				co.(*TrackFilter).SetText("ID")
-				//co.(*widgets.TrackFilter).NumberWidget()
+				co.(*TrackFilter).StreamType = Video
+				// co.(*TrackFilter).NumberWidget()
+				co.(*TrackFilter).SetFilter(track.NewVideoTrackRemover().Filter)
 			case "v_title":
 				co.(*TrackFilter).SetText("Title")
-				//co.(*widgets.TrackFilter).SetFilter(globalfilter.NewVideoTitleFilter())
+				co.(*TrackFilter).StreamType = Video
+				co.(*TrackFilter).SetFilter(track.NewVideoTrackRemover().Filter)
 			case "v_lang":
 				co.(*TrackFilter).SetText("Language")
+				co.(*TrackFilter).StreamType = Video
+				co.(*TrackFilter).SetFilter(track.NewVideoTrackRemover().Filter)
 			case "a_id":
 				co.(*TrackFilter).SetText("ID")
+				co.(*TrackFilter).StreamType = Audio
 			case "a_title":
 				co.(*TrackFilter).SetText("Title")
+				co.(*TrackFilter).StreamType = Audio
 			case "a_lang":
 				co.(*TrackFilter).SetText("Language")
+				co.(*TrackFilter).StreamType = Audio
 			case "s_id":
 				co.(*TrackFilter).SetText("ID")
+				co.(*TrackFilter).StreamType = Subtitle
 			case "s_title":
 				co.(*TrackFilter).SetText("Title")
+				co.(*TrackFilter).StreamType = Subtitle
 			case "s_lang":
 				co.(*TrackFilter).SetText("Language")
-
+				co.(*TrackFilter).StreamType = Subtitle
 			}
 
 			alreadyAppend := false
@@ -103,7 +114,7 @@ func (f *TrackRemoverComponent) Content() fyne.CanvasObject {
 				objects = append(objects, co)
 			}
 
-			//co.(*fyne.Container).Objects[1].(*widget.Select).SetSelectedIndex(0)
+			co.(*TrackFilter).conditionWidget.SetSelectedIndex(0)
 
 		},
 	)
@@ -112,14 +123,37 @@ func (f *TrackRemoverComponent) Content() fyne.CanvasObject {
 		f.RemoveTrack(&objects)
 	}
 
-	return container.NewBorder(nil, f.removeTrackButton, nil, nil, tree)
+	return container.NewBorder(nil, f.removeTrackButton, nil, nil, tree)*/
+	return f.container
 }
 
 func (f *TrackRemoverComponent) RemoveTrack(trackRemover *[]fyne.CanvasObject) {
-
-	/*for _, file := range f.fileList.GetItems() {
+	_ = []ffprobe.Stream{}
+	for _, file := range f.fileList.GetItems() {
 		for _, track := range *trackRemover {
-			fmt.Println(track.(*widgets.TrackFilter).GetCondition())
+			_ = track.(*TrackFilter)
+
+			/*switch trackFilter.StreamType {
+			case Video:
+				for _, stream := range file.GetVideoStreams() {
+					if trackFilter.Filter(stream) {
+						streamsToRemove = append(streamsToRemove, stream)
+					}
+				}
+			case Audio:
+				for _, stream := range file.GetAudioStreams() {
+					if trackFilter.Filter(stream) {
+						streamsToRemove = append(streamsToRemove, stream)
+					}
+				}
+			case Subtitle:
+				for _, stream := range file.GetSubtitleStreams() {
+					if trackFilter.(stream) {
+						streamsToRemove = append(streamsToRemove, stream)
+					}
+				}
+			}*/
+			fmt.Println(file.GetPath())
 		}
-	}*/
+	}
 }

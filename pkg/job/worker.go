@@ -20,10 +20,12 @@ func NewWorker(jobQueue chan Job, wg *sync.WaitGroup) *Worker {
 
 func (w *Worker) Start(ready *sync.WaitGroup) {
 	ready.Done() // Indiquer que le Worker est prêt
-	go func() {
-		for job := range w.JobQueue {
-			job.Work()
-			w.Wg.Done()
-		}
-	}()
+	go w.processJobs()
+}
+
+func (w *Worker) processJobs() {
+	for job := range w.JobQueue {
+		job.Work()
+		w.Wg.Done()
+	}
 }

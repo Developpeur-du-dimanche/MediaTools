@@ -1,0 +1,9 @@
+{
+    "name": "Subtitle Forced",
+    "conditions": [
+        "equals",
+        "not equals"
+    ],
+    "jsonPath": "$.format.bitrate",
+    "type": "int"
+}

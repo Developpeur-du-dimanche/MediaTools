@@ -1,7 +1,6 @@
 package view
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,75 +113,75 @@ func (h *HomeView) ShowAndRun() {
 }
 
 func (h *HomeView) OpenFileDialog() *dialog.FileDialog {
-	dialog := dialog.NewFileOpen(func(uc fyne.URIReadCloser, err error) {
-		if err != nil {
-			dialog.ShowError(err, *h.GetWindow())
-			return
-		}
-
-		if uc == nil {
-			return
-		}
-		h.list.AddFile(uc.URI().Path())
-	}, *h.GetWindow())
-	size := (*h.GetWindow()).Canvas().Size()
-	dialog.Resize(fyne.NewSize(size.Width-150, size.Height-150))
+	dialog := dialog.NewFileOpen(h.handleFileOpen, *h.GetWindow())
+	h.setupDialog(dialog)
 	return dialog
-
 }
 
 func (h *HomeView) OpenFolderDialog() *dialog.FileDialog {
-	dialog := dialog.NewFolderOpen(func(lu fyne.ListableURI, err error) {
-		if err != nil {
-			dialog.ShowError(err, *h.GetWindow())
-			return
-		}
+	dialog := dialog.NewFolderOpen(h.handleFolderOpen, *h.GetWindow())
+	h.setupDialog(dialog)
+	return dialog
+}
 
-		if lu == nil {
-			return
-		}
+func (h *HomeView) handleFileOpen(uc fyne.URIReadCloser, err error) {
+	if err != nil {
+		dialog.ShowError(err, *h.GetWindow())
+		return
+	}
 
-		list, err := lu.List()
-		if err != nil {
-			dialog.ShowError(err, *h.GetWindow())
-			return
-		}
+	if uc == nil {
+		return
+	}
+	h.list.AddFile(uc.URI().Path())
+}
 
-		scanFolder := widget.NewLabel("Scanning folder: " + lu.Path())
-		dialog := dialog.NewCustomWithoutButtons("Scanning folder", scanFolder, *h.GetWindow())
-		dialog.Show()
+func (h *HomeView) handleFolderOpen(lu fyne.ListableURI, err error) {
+	if err != nil {
+		dialog.ShowError(err, *h.GetWindow())
+		return
+	}
 
-		for _, file := range list {
-			if i, err := os.Stat(file.Path()); err == nil && i.IsDir() {
-				filepath.WalkDir(file.Path(), func(path string, d os.DirEntry, err error) error {
+	if lu == nil {
+		return
+	}
 
-					scanFolder.SetText("Scanning folder: " + path)
+	list, err := lu.List()
+	if err != nil {
+		dialog.ShowError(err, *h.GetWindow())
+		return
+	}
 
-					if err != nil {
-						return err
-					}
+	scanFolder := widget.NewLabel("Scanning folder: " + lu.Path())
+	dialog := dialog.NewCustomWithoutButtons("Scanning folder", scanFolder, *h.GetWindow())
+	dialog.Show()
 
-					if filepath.Ext(path) == "" {
-						return nil
-					}
-
-					if h.configuration.IsValidExtension(filepath.Ext(path)) {
-						h.list.AddFile(path)
-					}
-					return nil
-				})
-			} else {
-				scanFolder.SetText("Scanning folder: " + file.Path())
-				fmt.Printf("ext: %s\n", file.Extension())
-				if h.configuration.IsValidExtension(strings.ToLower(file.Extension())) {
-					h.list.AddFile(file.Path())
+	for _, file := range list {
+		if i, err := os.Stat(file.Path()); err == nil && i.IsDir() {
+			filepath.WalkDir(file.Path(), func(path string, d os.DirEntry, err error) error {
+				scanFolder.SetText("Scanning folder: " + path)
+				if err != nil {
+					return err
 				}
+				if filepath.Ext(path) == "" {
+					return nil
+				}
+				if h.configuration.IsValidExtension(filepath.Ext(path)) {
+					h.list.AddFile(path)
+				}
+				return nil
+			})
+		} else {
+			scanFolder.SetText("Scanning folder: " + file.Path())
+			if h.configuration.IsValidExtension(strings.ToLower(file.Extension())) {
+				h.list.AddFile(file.Path())
 			}
-
 		}
-		dialog.Hide()
-	}, *h.GetWindow())
+	}
+	dialog.Hide()
+}
+
+func (h *HomeView) setupDialog(dialog *dialog.FileDialog) {
 	size := (*h.GetWindow()).Canvas().Size()
 	dialog.Resize(fyne.NewSize(size.Width-150, size.Height-150))
-	return dialog
 }

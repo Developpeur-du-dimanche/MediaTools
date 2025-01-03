@@ -4,19 +4,27 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"github.com/Developpeur-du-dimanche/MediaTools/internal/filter"
+)
+
+type StreamType string
+
+const (
+	Video      StreamType = "Video"
+	Audio      StreamType = "Audio"
+	Subtitle   StreamType = "Subtitle"
+	Attachment StreamType = "Attachment"
 )
 
 type TrackFilter struct {
 	widget.BaseWidget
-	condition filter.ConditionString
+	condition string
 	value     string
 
 	keyWidget       *widget.Label
 	conditionWidget *widget.Select
 	valueWidget     *widget.Entry
 
-	filter *filter.Filter
+	StreamType StreamType
 }
 
 func NewTrackFilter(text string) *TrackFilter {
@@ -33,7 +41,7 @@ func NewTrackFilter(text string) *TrackFilter {
 	}
 
 	tf.conditionWidget.OnChanged = func(s string) {
-		tf.condition = filter.FromString(s)
+		tf.condition = s
 	}
 
 	tf.valueWidget.OnChanged = func(s string) {
@@ -60,22 +68,10 @@ func (tf *TrackFilter) SetText(text string) {
 	tf.keyWidget.SetText(text)
 }
 
-func (tf *TrackFilter) GetCondition() filter.ConditionString {
-	return tf.condition
-}
-
 func (tf *TrackFilter) GetValue() string {
 	return tf.value
 }
 
 func (tf *TrackFilter) Equals(other *TrackFilter) bool {
 	return tf.keyWidget.Text == other.keyWidget.Text
-}
-
-func (tf *TrackFilter) SetFilter(filter filter.Filter) {
-	tf.filter = &filter
-}
-
-func (tf *TrackFilter) GetFilter() filter.Filter {
-	return *tf.filter
 }

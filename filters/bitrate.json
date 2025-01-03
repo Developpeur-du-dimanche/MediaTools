@@ -1,0 +1,13 @@
+{
+    "name": "Bitrate",
+    "conditions": [
+        "equals",
+        "not equals",
+        "greater than",
+        "less than",
+        "greater or equals",
+        "less or equals"
+    ],
+    "jsonPath": "$.format.bitrate",
+    "type": "int"
+}

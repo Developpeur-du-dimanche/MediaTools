@@ -160,43 +160,43 @@ func (f *MergeFiles) Merge() {
 }
 
 func (f *MergeFiles) MergeFiles(files []string, output string) error {
-	// Normaliser le chemin de sortie
 	output = strings.ReplaceAll(output, "\\", "/")
-
-	// Calculer la taille totale des fichiers d'entrée
 	totalSize, err := f.calculateTotalSize(files)
 	if err != nil {
 		return err
 	}
 
-	// Créer le fichier temporaire avec le chemin normalisé
-	txtFile, err := os.Create(output + ".txt")
+	txtFile, err := f.createTempFile(files, output)
 	if err != nil {
 		return err
 	}
 	defer txtFile.Close()
 
-	// Écrire les chemins normalisés dans le fichier temporaire
-	for _, file := range files {
-		normalizedPath := strings.ReplaceAll(file, "\\", "/")
-		_, err := txtFile.WriteString(fmt.Sprintf("file '%s'\n", normalizedPath))
-		if err != nil {
-			return err
-		}
-	}
-
-	// Normaliser le chemin du fichier temporaire pour la commande FFmpeg
 	normalizedTxtPath := strings.ReplaceAll(txtFile.Name(), "\\", "/")
-
-	cmd := fmt.Sprintf("-progress pipe:1 -y -f concat -safe 0 -i %s -c copy %s",
-		normalizedTxtPath,
-		output)
+	cmd := fmt.Sprintf("-progress pipe:1 -y -f concat -safe 0 -i %s -c copy %s", normalizedTxtPath, output)
 	err = f.runCommandWithProgress(cmd, totalSize)
 	if err != nil {
 		return err
 	}
 
 	return os.Remove(txtFile.Name())
+}
+
+func (f *MergeFiles) createTempFile(files []string, output string) (*os.File, error) {
+	txtFile, err := os.Create(output + ".txt")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range files {
+		normalizedPath := strings.ReplaceAll(file, "\\", "/")
+		_, err := txtFile.WriteString(fmt.Sprintf("file '%s'\n", normalizedPath))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return txtFile, nil
 }
 
 func (f *MergeFiles) calculateTotalSize(files []string) (int64, error) {

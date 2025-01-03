@@ -4,20 +4,22 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"github.com/Developpeur-du-dimanche/MediaTools/internal/filter"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/customs"
+	jsonfilter "github.com/Developpeur-du-dimanche/MediaTools/pkg/filter"
 )
 
 type ConditionalWidget struct {
 	widget.BaseWidget
 	key       *widget.Select
-	choice    filter.ConditionContract
+	choice    jsonfilter.Filter
 	container *fyne.Container
+	condition string
 }
 
-func NewConditionalWidget(conditions []filter.ConditionContract) *ConditionalWidget {
-	choices := make([]string, len(conditions))
-	for i, condition := range conditions {
-		choices[i] = condition.Name()
+func NewConditionalWidget(filters *jsonfilter.Filters) *ConditionalWidget {
+	choices := make([]string, len(filters.Filters))
+	for i, filter := range filters.Filters {
+		choices[i] = filter.Name
 	}
 
 	key := widget.NewSelect(choices, nil)
@@ -34,14 +36,21 @@ func NewConditionalWidget(conditions []filter.ConditionContract) *ConditionalWid
 	}
 
 	c.key.OnChanged = func(s string) {
-		for _, cond := range conditions {
-			if cond.Name() == s {
-				c.choice = cond.New()
-				choiceWidget := widget.NewSelect(cond.GetPossibleConditions(), func(s string) {
-					c.choice.SetCondition(s)
+		for _, filter := range filters.Filters {
+			if filter.Name == s {
+				c.choice = filter
+				choiceWidget := widget.NewSelect(filter.GetStringCondition(), func(s string) {
+					c.condition = s
 				})
+				choiceWidget.SetSelectedIndex(0)
 				c.container.Objects[1] = choiceWidget
-				c.container.Objects[2] = c.choice.GetEntry()
+				switch filter.Type {
+				case jsonfilter.Int:
+					c.container.Objects[2] = customs.NewNumericalEntry()
+				default:
+					c.container.Objects[2] = widget.NewEntry()
+				}
+				value.Enable()
 				break
 			}
 		}

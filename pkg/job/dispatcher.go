@@ -1,7 +1,6 @@
 package job
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -44,7 +43,6 @@ func (d *Dispatcher) Run() {
 		select {
 		case job, ok := <-d.JobQueue:
 			if ok {
-				fmt.Println("Dispatcher: received job")
 				jobChannel := <-d.WorkerPool
 				jobChannel <- job
 			}
