@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components/customs"
@@ -63,11 +64,11 @@ func NewMergeFilesComponent(window *fyne.Window, fileList *list.List[fileinfo.Fi
 
 func (f *MergeFiles) Content() fyne.CanvasObject {
 
-	mergeButton := widget.NewButton("Merge", func() {
+	mergeButton := widget.NewButton(lang.L("merge"), func() {
 		f.Merge()
 	})
 	outputFile := widget.NewEntry()
-	outputFile.SetPlaceHolder("Output folder")
+	outputFile.SetPlaceHolder(lang.L("output_folder"))
 	outputFile.OnChanged = func(s string) {
 		f.outputFile = s
 	}
@@ -88,7 +89,7 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 		},
 	)
 
-	refreshButton := widget.NewButton("Refresh", func() {
+	refreshButton := widget.NewButton(lang.L("refresh"), func() {
 		f.inputFiles = []inputFiles{}
 		for i, file := range f.listFiles.GetItems() {
 			f.inputFiles = append(f.inputFiles, inputFiles{file.GetPath(), i, true})
@@ -134,7 +135,7 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 }
 
 func (f *MergeFiles) Merge() {
-	f.processText.SetText("Merging files... 0%")
+	f.processText.SetText(lang.L("merging_files") + " 0%")
 	f.procesPopup.Show()
 
 	defer f.procesPopup.Hide()
@@ -190,7 +191,7 @@ func (f *MergeFiles) createTempFile(files []string, output string) (*os.File, er
 
 	for _, file := range files {
 		normalizedPath := strings.ReplaceAll(file, "\\", "/")
-		_, err := txtFile.WriteString(fmt.Sprintf("file '%s'\n", normalizedPath))
+		_, err := txtFile.WriteString(fmt.Sprintf("%s '%s'\n", lang.L("file"), normalizedPath))
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +221,7 @@ func (f *MergeFiles) runCommandWithProgress(cmd string, totalSize int64) error {
 	}
 
 	if path == "" {
-		return errors.New("ffmpeg not found")
+		return errors.New(lang.L("ffmpeg_not_found"))
 	}
 
 	// Normaliser le chemin de FFmpeg
@@ -255,15 +256,17 @@ func (f *MergeFiles) runCommandWithProgress(cmd string, totalSize int64) error {
 			if totalSize > 0 {
 				percentComplete := float64(progress.totalSize) / float64(totalSize) * 100
 
-				f.processText.SetText(fmt.Sprintf("Merging files... %.1f%% (Speed: %.1fx, Bitrate: %.1f kbits/s)",
+				f.processText.SetText(fmt.Sprintf("%s %.1f%% (%s: %.1fx, Bitrate: %.1f kbits/s)",
+					lang.L("merging_files"),
 					percentComplete,
+					lang.L("speed"),
 					progress.speed,
 					progress.bitrate))
 			}
 
 			lines = []string{}
 		} else if line == "progress=end" {
-			f.processText.SetText("Merging files... 100%")
+			f.processText.SetText(lang.L("merging_files") + " 100%")
 			break
 		} else {
 			lines = append(lines, line)

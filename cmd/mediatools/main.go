@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/lang"
+	mediatools_embed "github.com/Developpeur-du-dimanche/MediaTools"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/configuration"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/mediatools"
 )
@@ -72,6 +73,6 @@ func main() {
 	})
 	configuration := configuration.NewConfiguration(a)
 	application := mediatools.NewApplication(a, configuration)
-	lang.AddTranslationsFS(mediatools.Translations, "localize")
+	lang.AddTranslationsFS(mediatools_embed.Translations, "localize")
 	application.Run()
 }

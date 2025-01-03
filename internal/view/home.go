@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components"
@@ -63,9 +64,9 @@ func (h HomeView) Content() fyne.CanvasObject {
 
 	c.Resize((h.window.Canvas().Size()))
 	layout := container.NewAdaptiveGrid(2, c, container.NewAppTabs(
-		container.NewTabItem("Filter", components.NewFilterComponent(&h.window, h.list.GetFiles()).Content()),
-		container.NewTabItem("Track Remover", components.NewTrackRemoverComponent(&h.window, h.list.GetFiles()).Content()),
-		container.NewTabItem("Merge files", components.NewMergeFilesComponent(&h.window, h.list.GetFiles()).Content()),
+		container.NewTabItem(lang.L("filter"), components.NewFilterComponent(&h.window, h.list.GetFiles()).Content()),
+		container.NewTabItem(lang.L("track_remover"), components.NewTrackRemoverComponent(&h.window, h.list.GetFiles()).Content()),
+		container.NewTabItem(lang.L("merge_files"), components.NewMergeFilesComponent(&h.window, h.list.GetFiles()).Content()),
 	))
 
 	return layout
@@ -79,11 +80,11 @@ func (h *HomeView) GetMainMenu() *fyne.MainMenu {
 	extentionsEntry := widget.NewEntry()
 	extentionsEntry.SetText(strings.Join(h.configuration.GetList("extension"), ","))
 	return fyne.NewMainMenu(
-		fyne.NewMenu("File",
-			fyne.NewMenuItem("Settings", func() {
+		fyne.NewMenu(lang.L("file"),
+			fyne.NewMenuItem(lang.L("settings"), func() {
 				// create settings view
 				view := container.NewBorder(
-					widget.NewLabel("Settings"),
+					widget.NewLabel(lang.L("settings")),
 					nil,
 					nil,
 					nil,
@@ -93,7 +94,7 @@ func (h *HomeView) GetMainMenu() *fyne.MainMenu {
 					),
 				)
 				// show popup with settings
-				popup := dialog.NewCustom("Settings", "Save", view, h.window)
+				popup := dialog.NewCustom(lang.L("settings"), lang.L("save"), view, h.window)
 
 				size := (*h.GetWindow()).Canvas().Size()
 				popup.Resize(fyne.NewSize(size.Width-150, size.Height-150))

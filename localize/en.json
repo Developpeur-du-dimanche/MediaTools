@@ -30,10 +30,12 @@
     "height": "Height",
     "track_remover": "Track remover",
     "merge_files": "Merge files",
+    "merge": "Merge",
     "settings": "Settings",
     "scanning_folder": "Scanning folder...",
     "no_folder_selected": "No folder selected",
     "loading": "Loading...",
     "close": "Close",
-    "save": "Save"
+    "save": "Save",
+    "speed": "Speed"
 }

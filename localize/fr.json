@@ -16,6 +16,7 @@
     "output_folder": "Dossier de sortie",
     "refresh": "Rafraîchir",
     "merging_files": "Fusion des fichiers...",
+    "merge": "Fusion",
     "ffmpeg_not_found": "FFmpeg n'a pas été trouvé, veuillez vérifier que le chemin d'accès est correct",
     "codec_name": "Codec",
     "bitrate": "Débit",
@@ -35,5 +36,6 @@
     "no_folder_selected": "Aucun dossier sélectionné",
     "loading": "Chargement...",
     "close": "Fermer",
-    "save": "Enregistrer"
+    "save": "Enregistrer",
+    "speed": "Vitesse"
 }

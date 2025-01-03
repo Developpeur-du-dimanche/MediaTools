@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/widget"
-	jsonembed "github.com/Developpeur-du-dimanche/MediaTools"
+	mediatools_embed "github.com/Developpeur-du-dimanche/MediaTools"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/fileinfo"
 	jsonfilter "github.com/Developpeur-du-dimanche/MediaTools/pkg/filter"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
@@ -24,7 +24,7 @@ type FilterComponent struct {
 }
 
 func NewFilterComponent(window *fyne.Window, fileList *list.List[fileinfo.FileInfo]) *FilterComponent {
-	jf := jsonfilter.NewParser(jsonembed.Filters)
+	jf := jsonfilter.NewParser(mediatools_embed.Filters)
 	p, err := jf.Parse()
 
 	if err != nil {
@@ -43,13 +43,13 @@ func NewFilterComponent(window *fyne.Window, fileList *list.List[fileinfo.FileIn
 
 func (f *FilterComponent) Content() fyne.CanvasObject {
 
-	addFilterButton := widget.NewButton("Add filter", func() {
+	addFilterButton := widget.NewButton(lang.L("add_filter"), func() {
 		nc := NewConditionalWidget(f.filters)
 		f.choices = append(f.choices, nc)
 		f.container.Add(nc)
 	})
 
-	removeFilterButton := widget.NewButton("Remove filter", func() {
+	removeFilterButton := widget.NewButton(lang.L("remove_filter"), func() {
 		if len(f.choices) > 0 {
 			f.choices = f.choices[:len(f.choices)-1]
 			f.container.Remove(f.container.Objects[len(f.container.Objects)-1])
