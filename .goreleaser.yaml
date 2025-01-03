@@ -14,6 +14,7 @@ before:
     - go mod tidy
     # you may remove this if you don't need go generate
     - go generate ./...
+    - go get fyne.io/fyne/v2/app@v2.5.3
     - go get fyne.io/fyne/v2@latest
     - go get gopkg.in/vansante/go-ffprobe.v2
     - go get github.com/go-text/render
