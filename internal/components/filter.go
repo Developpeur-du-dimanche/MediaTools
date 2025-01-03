@@ -56,7 +56,11 @@ func (f *FilterComponent) Content() fyne.CanvasObject {
 		}
 	})
 
-	f.filterButton.OnTapped = f.Filter
+	f.filterButton.OnTapped = func() {
+		f.filterButton.Disable()
+		f.Filter()
+		f.filterButton.Enable()
+	}
 
 	return container.NewBorder(
 		container.NewHBox(
@@ -73,11 +77,9 @@ func (f *FilterComponent) Content() fyne.CanvasObject {
 }
 
 func (f *FilterComponent) Filter() {
-	f.filterButton.Disable()
 
 	if f.fileList.GetLength() == 0 || len(f.choices) == 0 {
 		dialog.ShowError(errors.New("no file selected or no filter added"), *f.window)
-		f.filterButton.Enable()
 		return
 	}
 
@@ -104,34 +106,6 @@ func (f *FilterComponent) Filter() {
 	cd.Hide()
 
 	// create new window to display filtered files
-	w := fyne.CurrentApp().NewWindow("Filtered files")
-	screen := fyne.CurrentApp().Driver().AllWindows()[0].Canvas().Size()
-	w.Resize(fyne.NewSize(float32(screen.Width/2), float32(screen.Height/2)))
-
-	list := widget.NewList(
-		func() int {
-			return output.GetLength()
-		},
-		func() fyne.CanvasObject {
-			return widget.NewLabel("template")
-		},
-		func(i widget.ListItemID, item fyne.CanvasObject) {
-			item.(*widget.Label).SetText(output.GetItem(i).GetPath())
-		},
-	)
-
-	list.Resize(fyne.NewSize(float32(screen.Width/4), float32(screen.Height/2)))
-
-	w.SetContent(container.NewBorder(
-		nil,
-		nil,
-		nil,
-		nil,
-		list,
-	))
-
-	w.Show()
-
-	f.filterButton.Enable()
+	NewResultList(output).Show()
 
 }
