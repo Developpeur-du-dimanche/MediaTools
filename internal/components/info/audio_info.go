@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/widget"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
@@ -25,29 +26,29 @@ func NewAudioInfo(id string) *AudioInfo {
 func (a *AudioInfo) GetNodes() []widget.TreeNodeID {
 	i := strings.Split(a.id, " ")[1]
 	return []widget.TreeNodeID{
+		audio + i + "title",
+		audio + i + "language",
+		audio + i + "channels",
 		audio + i + "codec_name",
 		audio + i + "bit_rate",
-		audio + i + "channels",
-		audio + i + "language",
-		audio + i + "title",
 	}
 }
 
 func (a *AudioInfo) From(label *widget.Label, stream *ffprobe.Stream, id widget.TreeNodeID) {
 	switch true {
 	case strings.HasSuffix(id, "codec_name"):
-		label.SetText("Codec name: " + stream.CodecName)
+		label.SetText(lang.L("codec_name") + ": " + stream.CodecName)
 	case strings.HasSuffix(id, "bit_rate"):
-		label.SetText("Bitrate: " + fmt.Sprint(stream.BitRate))
+		label.SetText(lang.L("bitrate") + ": " + fmt.Sprint(stream.BitRate))
 	case strings.HasSuffix(id, "channels"):
 		label.SetText("Channels: " + fmt.Sprint(stream.Channels))
 	case strings.HasSuffix(id, "language"):
 		if stream.Tags.Language != "" {
-			label.SetText("Language: " + fmt.Sprint(stream.Tags.Language))
+			label.SetText(lang.L("language") + ": " + fmt.Sprint(stream.Tags.Language))
 		} else {
-			label.SetText("Language: Unknown")
+			label.SetText(lang.L("language") + ": " + lang.L("unknown"))
 		}
 	case strings.HasSuffix(id, "title"):
-		label.SetText("Title: " + stream.Tags.Title)
+		label.SetText(lang.L("title") + ": " + stream.Tags.Title)
 	}
 }

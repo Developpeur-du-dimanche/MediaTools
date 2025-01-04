@@ -44,7 +44,7 @@ func NewFileListComponent(parent *fyne.Window) *FileListComponent {
 				c.list.Refresh()
 			}
 			item.(*fyne.Container).Objects[1].(*widget.Button).OnTapped = func() {
-				d := dialog.NewCustom("Info", lang.L("close"), NewFileInfoComponent(c.files.GetItem(i)), *parent)
+				d := dialog.NewCustom("Info", lang.L("close"), NewFileInfoComponent(parent, c.files.GetItem(i)), *parent)
 				d.Resize(fyne.NewSize(400, 400))
 				d.Show()
 			}

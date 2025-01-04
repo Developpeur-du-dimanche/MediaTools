@@ -24,10 +24,8 @@ func NewConditionalWidget(filters *jsonfilter.Filters) *ConditionalWidget {
 	}
 
 	key := widget.NewSelect(choices, nil)
-
 	choice := widget.NewSelect([]string{"Select a condition"}, nil)
 	choice.Disable()
-
 	value := widget.NewSelect([]string{"Select a value"}, nil)
 	value.Disable()
 
@@ -37,49 +35,62 @@ func NewConditionalWidget(filters *jsonfilter.Filters) *ConditionalWidget {
 	}
 
 	c.key.OnChanged = func(s string) {
-		for _, filter := range filters.Filters {
-			if filter.Name == s {
-				c.choice = filter
-				choiceWidget := widget.NewSelect(filter.GetStringCondition(), func(s string) {
-					c.condition = s
-				})
-				choiceWidget.SetSelectedIndex(0)
-				c.container.Objects[1] = choiceWidget
-
-				if filter.HasDefaultValues() {
-					value.Enable()
-					c.value = filter.GetDefaultValues()[0]
-					valueWidget := widget.NewSelect(filter.GetDefaultValues(), func(s string) {
-						c.value = s
-					})
-					valueWidget.SetSelectedIndex(0)
-					c.container.Objects[2] = valueWidget
-					break
-				}
-
-				switch filter.Type {
-				case jsonfilter.Int:
-					c.container.Objects[2] = customs.NewNumericalEntry()
-					c.container.Objects[2].(*customs.NumericalEntry).OnChanged = func(s string) {
-						c.value = s
-					}
-				default:
-					c.container.Objects[2] = widget.NewEntry()
-					c.container.Objects[2].(*widget.Entry).OnChanged = func(s string) {
-						c.value = s
-					}
-				}
-
-				value.Enable()
-				break
-			}
-		}
+		c.updateChoiceAndValueWidgets(s, filters)
 	}
 
 	c.ExtendBaseWidget(c)
-
 	return c
+}
 
+func (c *ConditionalWidget) updateChoiceAndValueWidgets(selectedKey string, filters *jsonfilter.Filters) {
+	for _, filter := range filters.Filters {
+		if filter.Name == selectedKey {
+			c.choice = filter
+			c.updateChoiceWidget(filter)
+			c.updateValueWidget(filter)
+			break
+		}
+	}
+}
+
+func (c *ConditionalWidget) updateChoiceWidget(filter jsonfilter.Filter) {
+	choiceWidget := widget.NewSelect(filter.GetStringCondition(), func(s string) {
+		c.condition = s
+	})
+	choiceWidget.SetSelectedIndex(0)
+	c.container.Objects[1] = choiceWidget
+}
+
+func (c *ConditionalWidget) updateValueWidget(filter jsonfilter.Filter) {
+	if filter.HasDefaultValues() {
+		c.value = filter.GetDefaultValues()[0]
+		valueWidget := widget.NewSelect(filter.GetDefaultValues(), func(s string) {
+			c.value = s
+		})
+		valueWidget.SetSelectedIndex(0)
+		c.container.Objects[2] = valueWidget
+		valueWidget.Enable()
+	} else {
+		c.createCustomValueWidget(filter)
+	}
+}
+
+func (c *ConditionalWidget) createCustomValueWidget(filter jsonfilter.Filter) {
+	var valueWidget customs.CustomEntry
+	switch filter.GetType() {
+	case jsonfilter.Int:
+		valueWidget = customs.NewNumericalEntry()
+		valueWidget.(*customs.NumericalEntry).OnChanged = func(s string) {
+			c.value = s
+		}
+	default:
+		valueWidget = widget.NewEntry()
+		valueWidget.(*widget.Entry).OnChanged = func(s string) {
+			c.value = s
+		}
+	}
+	c.container.Objects[2] = valueWidget
+	valueWidget.Enable()
 }
 
 func (c *ConditionalWidget) CreateRenderer() fyne.WidgetRenderer {

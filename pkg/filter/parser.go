@@ -35,6 +35,7 @@ type Filters struct {
 }
 
 type Filter interface {
+	GetType() FilterType
 	GetStringCondition() []string
 	HasDefaultValues() bool
 	GetDefaultValues() []string
@@ -112,6 +113,10 @@ func (f filter) HasDefaultValues() bool {
 
 func (f filter) GetDefaultValues() []string {
 	return f.DefaultValues
+}
+
+func (f filter) GetType() FilterType {
+	return f.Type
 }
 
 // example of jsonPath : $.Format.BitRate

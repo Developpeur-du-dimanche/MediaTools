@@ -17,16 +17,18 @@ import (
 
 type FileInfoComponent struct {
 	widget.BaseWidget
-	file  *helper.FileMetadata
-	tree  *widget.Tree
-	title string
+	file   *helper.FileMetadata
+	tree   *widget.Tree
+	title  string
+	window *fyne.Window
 }
 
-func NewFileInfoComponent(file *helper.FileMetadata) *FileInfoComponent {
+func NewFileInfoComponent(window *fyne.Window, file *helper.FileMetadata) *FileInfoComponent {
 
 	c := &FileInfoComponent{
-		file:  file,
-		title: file.FileName,
+		file:   file,
+		title:  file.FileName,
+		window: window,
 	}
 
 	c.tree = widget.NewTree(c.childUIDs, c.isBranch, c.create, c.update)
@@ -35,6 +37,8 @@ func NewFileInfoComponent(file *helper.FileMetadata) *FileInfoComponent {
 }
 
 func (f *FileInfoComponent) CreateRenderer() fyne.WidgetRenderer {
+	size := (*f.window).Canvas().Size()
+
 	b := container.NewBorder(
 		container.NewVBox(
 			widget.NewLabel(lang.L("folder")+": "+f.file.Directory),
@@ -45,6 +49,8 @@ func (f *FileInfoComponent) CreateRenderer() fyne.WidgetRenderer {
 		nil,
 		f.tree,
 	)
+	b.Resize(fyne.NewSize(size.Width-150, size.Height-150))
+
 	return widget.NewSimpleRenderer(b)
 }
 
@@ -122,7 +128,6 @@ func (f *FileInfoComponent) update(id widget.TreeNodeID, isBranch bool, co fyne.
 	case "duration":
 		co.(*widget.Label).SetText("Duration: " + fmt.Sprint(file.Duration))
 	case "size":
-		// file.Size to uint64
 		size, err := strconv.ParseUint(file.Size, 10, 64)
 
 		if err != nil {

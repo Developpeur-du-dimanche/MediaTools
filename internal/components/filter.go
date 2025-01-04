@@ -15,12 +15,14 @@ import (
 )
 
 type FilterComponent struct {
-	choices      []*ConditionalWidget
-	container    *fyne.Container
-	fileList     *list.List[*helper.FileMetadata]
-	window       *fyne.Window
-	filterButton *widget.Button
-	filters      *jsonfilter.Filters
+	choices            []*ConditionalWidget
+	container          *fyne.Container
+	fileList           *list.List[*helper.FileMetadata]
+	window             *fyne.Window
+	filterButton       *widget.Button
+	addFilterButton    *widget.Button
+	removeFilterButton *widget.Button
+	filters            *jsonfilter.Filters
 }
 
 func NewFilterComponent(window *fyne.Window, fileList *list.List[*helper.FileMetadata]) Component {
@@ -32,29 +34,21 @@ func NewFilterComponent(window *fyne.Window, fileList *list.List[*helper.FileMet
 	}
 
 	return &FilterComponent{
-		choices:      []*ConditionalWidget{},
-		container:    container.NewVBox(),
-		fileList:     fileList,
-		window:       window,
-		filterButton: widget.NewButton(lang.L("filter"), nil),
-		filters:      p,
+		choices:            []*ConditionalWidget{},
+		container:          container.NewVBox(),
+		fileList:           fileList,
+		window:             window,
+		filterButton:       widget.NewButton(lang.L("filter"), nil),
+		addFilterButton:    widget.NewButton(lang.L("add_filter"), nil),
+		removeFilterButton: widget.NewButton(lang.L("remove_filter"), nil),
+		filters:            p,
 	}
 }
 
 func (f *FilterComponent) Content() fyne.CanvasObject {
 
-	addFilterButton := widget.NewButton(lang.L("add_filter"), func() {
-		nc := NewConditionalWidget(f.filters)
-		f.choices = append(f.choices, nc)
-		f.container.Add(nc)
-	})
-
-	removeFilterButton := widget.NewButton(lang.L("remove_filter"), func() {
-		if len(f.choices) > 0 {
-			f.choices = f.choices[:len(f.choices)-1]
-			f.container.Remove(f.container.Objects[len(f.container.Objects)-1])
-		}
-	})
+	f.addFilterButton.OnTapped = f.addFilter
+	f.removeFilterButton.OnTapped = f.removeFilter
 
 	f.filterButton.OnTapped = func() {
 		f.filterButton.Disable()
@@ -64,8 +58,8 @@ func (f *FilterComponent) Content() fyne.CanvasObject {
 
 	return container.NewBorder(
 		container.NewHBox(
-			addFilterButton,
-			removeFilterButton,
+			f.addFilterButton,
+			f.removeFilterButton,
 		),
 		f.filterButton,
 		nil,
@@ -107,4 +101,17 @@ func (f *FilterComponent) Filter() {
 	// create new window to display filtered files
 	NewResultList(output).Show()
 
+}
+
+func (f *FilterComponent) addFilter() {
+	c := NewConditionalWidget(f.filters)
+	f.choices = append(f.choices, c)
+	f.container.Add(c.container)
+}
+
+func (f *FilterComponent) removeFilter() {
+	if len(f.choices) > 0 {
+		f.choices = f.choices[:len(f.choices)-1]
+		f.container.Remove(f.container.Objects[len(f.container.Objects)-1])
+	}
 }
