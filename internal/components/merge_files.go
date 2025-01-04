@@ -214,11 +214,7 @@ func (f *MergeFiles) calculateTotalSize(files []string) (int64, error) {
 }
 
 func (f *MergeFiles) runCommandWithProgress(cmd string, totalSize int64) error {
-	path, err := exec.LookPath("FFMPEG")
-	if err != nil {
-		return err
-	}
-
+	path := fyne.CurrentApp().Preferences().String("ffmpeg")
 	if path == "" {
 		return errors.New(lang.L("ffmpeg_not_found"))
 	}

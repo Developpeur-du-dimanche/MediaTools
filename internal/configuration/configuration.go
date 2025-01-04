@@ -1,9 +1,12 @@
 package configuration
 
 import (
+	"os/exec"
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/lang"
 )
 
 type Configuration interface {
@@ -18,7 +21,7 @@ type configuration struct {
 	preferences fyne.Preferences
 }
 
-func NewConfiguration(app fyne.App) Configuration {
+func NewConfiguration(app fyne.App, window *fyne.Window) Configuration {
 
 	preferences := app.Preferences()
 	extensions := preferences.StringList("extension")
@@ -37,6 +40,22 @@ func NewConfiguration(app fyne.App) Configuration {
 			"m4v",
 		}
 		preferences.SetStringList("extension", extensions)
+	}
+
+	ffmpeg := preferences.String("ffmpeg")
+
+	if ffmpeg == "" {
+
+		// get ffmpeg from path
+		path, err := exec.LookPath("ffmpeg")
+
+		if err != nil {
+			dialog.ShowInformation("MediaTools", lang.L("ffmpeg_not_found"), *window)
+		} else {
+			preferences.SetString("ffmpeg", path)
+		}
+
+		preferences.SetString("ffmpeg", path)
 	}
 
 	return &configuration{

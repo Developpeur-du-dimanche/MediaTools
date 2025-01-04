@@ -71,8 +71,10 @@ func main() {
 		Name: "MediaTools",
 		Icon: fyne.NewStaticResource("Icon.svg", []byte(logo)),
 	})
-	configuration := configuration.NewConfiguration(a)
-	application := mediatools.NewApplication(a, configuration)
+	mainWindow := a.NewWindow("MediaTools")
 	lang.AddTranslationsFS(mediatools_embed.Translations, "localize")
+
+	configuration := configuration.NewConfiguration(a, &mainWindow)
+	application := mediatools.NewApplication(a, configuration, &mainWindow)
 	application.Run()
 }

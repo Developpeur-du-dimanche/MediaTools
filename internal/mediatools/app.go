@@ -12,10 +12,10 @@ type Application struct {
 	configuration configuration.Configuration
 }
 
-func NewApplication(app fyne.App, configuration configuration.Configuration) *Application {
+func NewApplication(app fyne.App, configuration configuration.Configuration, window *fyne.Window) *Application {
 	return &Application{
 		app:           app,
-		window:        app.NewWindow("MediaTools"),
+		window:        *window,
 		configuration: configuration,
 	}
 }

@@ -17,7 +17,7 @@
     "refresh": "Rafraîchir",
     "merging_files": "Fusion des fichiers...",
     "merge": "Fusion",
-    "ffmpeg_not_found": "FFmpeg n'a pas été trouvé, veuillez vérifier que le chemin d'accès est correct",
+    "ffmpeg_not_found": "FFmpeg n'a pas été trouvé, veuillez vérifier que le chemin d'accès est correct dans les paramètres",
     "codec_name": "Codec",
     "bitrate": "Débit",
     "language": "Langue",

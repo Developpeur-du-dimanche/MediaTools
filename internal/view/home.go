@@ -83,31 +83,39 @@ func (h *HomeView) GetWindow() *fyne.Window {
 func (h *HomeView) GetMainMenu() *fyne.MainMenu {
 	extentionsEntry := widget.NewEntry()
 	extentionsEntry.SetText(strings.Join(h.configuration.GetList("extension"), ","))
+
+	ffmpegPathEntry := widget.NewEntry()
+	ffmpegPath := h.configuration.Get("ffmpeg")
+	// replace \ with / for windows
+	ffmpegPath = strings.ReplaceAll(ffmpegPath, "\\", "/")
+	ffmpegPathEntry.SetText(ffmpegPath)
 	return fyne.NewMainMenu(
 		fyne.NewMenu(lang.L("file"),
 			fyne.NewMenuItem(lang.L("settings"), func() {
 				// create settings view
-				view := container.NewBorder(
-					widget.NewLabel(lang.L("settings")),
-					nil,
-					nil,
-					nil,
-					container.NewHSplit(
-						widget.NewLabel("Extension:"),
-						extentionsEntry,
-					),
+				view := dialog.NewForm(
+					lang.L("settings"),
+					lang.L("save"),
+					lang.L("cancel"),
+					[]*widget.FormItem{
+						widget.NewFormItem(lang.L("extensions"), extentionsEntry),
+						widget.NewFormItem(lang.L("ffmpeg"), ffmpegPathEntry),
+					},
+					func(ok bool) {
+						if !ok {
+							return
+						}
+
+						ext := strings.Split(strings.Trim(extentionsEntry.Text, " "), ",")
+						h.configuration.SaveExtensions(ext)
+					},
+					*h.GetWindow(),
 				)
 				// show popup with settings
-				popup := dialog.NewCustom(lang.L("settings"), lang.L("save"), view, h.window)
 
 				size := (*h.GetWindow()).Canvas().Size()
-				popup.Resize(fyne.NewSize(size.Width-150, size.Height-150))
-				popup.Show()
-
-				popup.SetOnClosed(func() {
-					ext := strings.Split(strings.Trim(extentionsEntry.Text, " "), ",")
-					h.configuration.SaveExtensions(ext)
-				})
+				view.Resize(fyne.NewSize(size.Width-150, size.Height-150))
+				view.Show()
 			}),
 		),
 	)
