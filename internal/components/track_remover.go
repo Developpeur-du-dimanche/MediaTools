@@ -13,18 +13,18 @@ import (
 	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/helper"
-	jsonfilter "github.com/Developpeur-du-dimanche/MediaTools/pkg/filter"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
 type TrackRemoverComponent struct {
-	container         *fyne.Container
-	fileList          *list.List[*helper.FileMetadata]
-	window            *fyne.Window
-	removeTrackButton *widget.Button
-	processText       *widget.Label
-	procesPopup       *widget.PopUp
+	container                 *fyne.Container
+	fileList                  *list.List[*helper.FileMetadata]
+	window                    *fyne.Window
+	removeTrackButton         *widget.Button
+	removeAllAttachmentButton *widget.Button
+	processText               *widget.Label
+	procesPopup               *widget.PopUp
 }
 
 type TrackRemoverCondition string
@@ -36,15 +36,14 @@ const (
 	TrackRemoverNotContains TrackRemoverCondition = "not contains"
 )
 
-type trackFilter func(*ffprobe.Stream, StreamType, jsonfilter.FilterType, string) bool
-
 func NewTrackRemoverComponent(window *fyne.Window, fileList *list.List[*helper.FileMetadata]) Component {
 	return &TrackRemoverComponent{
-		container:         container.NewVBox(),
-		fileList:          fileList,
-		window:            window,
-		removeTrackButton: widget.NewButton("Remove", nil),
-		processText:       widget.NewLabel(""),
+		container:                 container.NewVBox(),
+		fileList:                  fileList,
+		window:                    window,
+		removeAllAttachmentButton: widget.NewButton("Remove all attachments", nil),
+		removeTrackButton:         widget.NewButton("Remove", nil),
+		processText:               widget.NewLabel(""),
 	}
 }
 
@@ -146,12 +145,24 @@ func (f *TrackRemoverComponent) Content() fyne.CanvasObject {
 	)
 
 	f.removeTrackButton.OnTapped = func() {
+		f.removeTrackButton.Disable()
 		f.RemoveTrack(&objects)
+		f.removeTrackButton.Enable()
+	}
+
+	f.removeAllAttachmentButton.OnTapped = func() {
+		f.removeTrackButton.Disable()
+		f.removeAllAttachment()
+		f.removeTrackButton.Enable()
 	}
 
 	f.procesPopup = widget.NewPopUp(f.processText, (*f.window).Canvas())
 
-	return container.NewBorder(nil, f.removeTrackButton, nil, nil, tree)
+	return container.NewBorder(nil,
+		container.NewVBox(
+			f.removeAllAttachmentButton,
+			f.removeTrackButton,
+		), nil, nil, tree)
 }
 
 func (f *TrackRemoverComponent) checkId(stream *ffprobe.Stream, condition TrackRemoverCondition, id string) bool {
@@ -201,6 +212,76 @@ func (f *TrackRemoverComponent) checkLanguage(stream *ffprobe.Stream, condition 
 type StreamFileRemove struct {
 	stream []*ffprobe.Stream
 	file   *helper.FileMetadata
+}
+
+func (f *TrackRemoverComponent) removeAllAttachment() {
+	dialog := dialog.NewConfirm("Confirm deletion", "Are you sure you want to delete all attachments?", func(b bool) {
+		if b {
+			for _, file := range f.fileList.GetItems() {
+				args := []string{
+					"-progress",
+					"pipe:1",
+					"-i", file.Directory + "/" + file.FileName,
+					"-map", "0",
+					"-c", "copy",
+					"-map", "-0:d",
+					"-y", file.Directory + "/" + strings.TrimSuffix(file.FileName, filepath.Ext(file.FileName)) + "-new." + file.Extension,
+				}
+				progress := helper.NewCmd()
+
+				totalSize, err := helper.CalculateTotalSize([]string{file.Directory + "/" + file.FileName})
+
+				if err != nil {
+					dialog.ShowError(err, *f.window)
+					return
+				}
+
+				command, err := progress.RunCommandWithProgress(args, totalSize)
+				if err != nil {
+					dialog.ShowError(err, *f.window)
+					return
+				}
+
+				f.procesPopup.Show()
+				defer f.procesPopup.Hide()
+
+				for p := range progress.CProgress {
+					if p.PercentComplete == 100 {
+						f.processText.SetText(lang.L("merging_files") + " 100%")
+						break
+					}
+					f.processText.SetText(fmt.Sprintf("%s %.1f%% (%s: %.1fx, Bitrate: %.1f kbits/s)",
+						fmt.Sprintf("Supression de piste %s", file.FileName),
+						p.PercentComplete,
+						lang.L("speed"),
+						p.Speed,
+						p.Bitrate))
+				}
+
+				err = command.Wait()
+
+				if err != nil {
+					dialog.ShowError(err, *f.window)
+				}
+
+				// remove old file
+				err = os.Remove(file.FileName)
+
+				if err != nil {
+					dialog.ShowError(err, *f.window)
+				}
+
+				// rename new file
+				err = os.Rename(file.FileName+"-new"+file.Extension, file.FileName)
+
+				if err != nil {
+					dialog.ShowError(err, *f.window)
+				}
+			}
+		}
+	}, *f.window)
+
+	dialog.Show()
 }
 
 func (f *TrackRemoverComponent) RemoveTrack(trackRemover *[]fyne.CanvasObject) {
