@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
 type StreamType string
@@ -24,6 +25,7 @@ type TrackFilter struct {
 	conditionWidget *widget.Select
 	valueWidget     *widget.Entry
 
+	filter     func(stream *ffprobe.Stream, condition TrackRemoverCondition, title string) bool
 	StreamType StreamType
 }
 
