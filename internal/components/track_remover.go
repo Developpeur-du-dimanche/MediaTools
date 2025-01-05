@@ -254,8 +254,22 @@ func (f *TrackRemoverComponent) RemoveTrack(trackRemover *[]fyne.CanvasObject) {
 
 	}
 
+	if len(streamToRemove) == 0 {
+		dialog.ShowInformation("No track found", "No track found", *f.window)
+		return
+	}
+
+	var streamToDelete []string
+	str := "(%s) Stream %d from %s, title: %s, codec: %s"
+
+	for _, s := range streamToRemove {
+		for _, stream := range s.stream {
+			streamToDelete = append(streamToDelete, fmt.Sprintf(str, stream.CodecType, stream.Index, s.file.FileName, stream.Tags.Title, stream.CodecName))
+		}
+	}
+
 	// show dialog to confirm deletion
-	dialog := dialog.NewConfirm("Confirm deletion", "Are you sure you want to delete the selected tracks?", func(b bool) {
+	dialog := dialog.NewConfirm("Confirm deletion", "Are you sure you want to delete the selected tracks?\n"+strings.Join(streamToDelete, "\n"), func(b bool) {
 		if b {
 			for _, s := range streamToRemove {
 				f.RemoveStream(s)
@@ -283,6 +297,8 @@ func (f *TrackRemoverComponent) RemoveStream(s StreamFileRemove) {
 	}
 
 	args := []string{
+		"-progress",
+		"pipe:1",
 		"-i", s.file.Directory + "/" + s.file.FileName,
 		"-map", "0",
 	}

@@ -248,6 +248,8 @@ func (f *MergeFiles) MergeFiles(files []inputFiles, output string) error {
 		"0",
 		"-i",
 		normalizedTxtPath,
+		"-map",
+		"0",
 		"-c",
 		"copy",
 		output,
