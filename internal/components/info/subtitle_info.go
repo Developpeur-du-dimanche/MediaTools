@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/widget"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
@@ -45,15 +46,15 @@ func (v *SubtitleInfo) From(label *widget.Label, stream *ffprobe.Stream, id widg
 		label.SetText("Title: " + stream.Tags.Title)
 	case strings.HasSuffix(id, "language"):
 		if stream.Tags.Language != "" {
-			label.SetText("Language: " + fmt.Sprint(stream.Tags.Language))
+			label.SetText(lang.L("language") + ": " + fmt.Sprint(stream.Tags.Language))
 		} else {
-			label.SetText("Language: Unknown")
+			label.SetText(lang.L("language") + ": " + lang.L("unknown"))
 		}
 	case strings.HasSuffix(id, "forced"):
 		if stream.Disposition.Forced == 1 {
-			label.SetText("Forced: Yes")
+			label.SetText(lang.L("forced") + ": " + lang.L("yes"))
 		} else {
-			label.SetText("Forced: No")
+			label.SetText(lang.L("forced") + ": " + lang.L("no"))
 		}
 	case strings.HasSuffix(id, "default"):
 		if stream.Disposition.Default == 1 {
@@ -63,9 +64,9 @@ func (v *SubtitleInfo) From(label *widget.Label, stream *ffprobe.Stream, id widg
 		}
 	case strings.HasSuffix(id, "hearing_impaired"):
 		if stream.Disposition.HearingImpaired == 1 {
-			label.SetText("Hearing impaired: Yes")
+			label.SetText(lang.L("hearing_impaired") + ": " + lang.L("yes"))
 		} else {
-			label.SetText("Hearing impaired: No")
+			label.SetText(lang.L("hearing_impaired") + ": " + lang.L("no"))
 		}
 	}
 }

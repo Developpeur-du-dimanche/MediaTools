@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/widget"
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
@@ -35,14 +36,14 @@ func (v *VideoInfo) GetNodes() []widget.TreeNodeID {
 func (v *VideoInfo) From(label *widget.Label, stream *ffprobe.Stream, id widget.TreeNodeID) {
 	switch true {
 	case strings.HasSuffix(id, "codec_name"):
-		label.SetText("Codec name: " + stream.CodecName)
+		label.SetText(lang.L("codec") + ": " + stream.CodecName)
 	case strings.HasSuffix(id, "width"):
-		label.SetText("Width: " + fmt.Sprint(stream.Width))
+		label.SetText(lang.L("width") + ": " + fmt.Sprint(stream.Width))
 	case strings.HasSuffix(id, "height"):
-		label.SetText("Height: " + fmt.Sprint(stream.Height))
+		label.SetText(lang.L("height") + ": " + fmt.Sprint(stream.Height))
 	case strings.HasSuffix(id, "bit_rate"):
-		label.SetText("Bit rate: " + fmt.Sprint(stream.BitRate))
+		label.SetText(lang.L("bitrate") + ": " + fmt.Sprint(stream.BitRate))
 	case strings.HasSuffix(id, "title"):
-		label.SetText("Title: " + stream.Tags.Title)
+		label.SetText(lang.L("title") + ": " + stream.Tags.Title)
 	}
 }

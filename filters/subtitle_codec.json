@@ -5,5 +5,5 @@
         "not equals"
     ],
     "jsonPath": "$.Subtitle[*].codec_name",
-    "type": "int"
+    "type": "string"
 }

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"strconv"
+	"strings"
 
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/helper"
 	"github.com/ohler55/ojg/jp"
@@ -28,6 +30,7 @@ type FilterType string
 const (
 	String FilterType = "string"
 	Int    FilterType = "int"
+	Bool   FilterType = "bool"
 )
 
 type Filters struct {
@@ -119,6 +122,14 @@ func (f filter) GetType() FilterType {
 	return f.Type
 }
 
+func parseInt(value string) (int, error) {
+	return strconv.Atoi(value)
+}
+
+func parseBool(value string) (bool, error) {
+	return strconv.ParseBool(value)
+}
+
 // example of jsonPath : $.Format.BitRate
 // example of jsonPath : $.Streams[0].Tags.Language
 // where $ is the root of the json
@@ -147,39 +158,118 @@ func (f filter) Check(data *helper.FileMetadata, condition Condition, value stri
 
 		switch condition {
 		case Equals:
+			switch f.Type {
+			case Int:
+				intValue, err := parseInt(value)
+				if err != nil {
+					log.Default().Println(err)
+					return false
+				}
+
+				if result == intValue {
+					return true
+				}
+			case Bool:
+				boolValue, err := parseBool(value)
+				if err != nil {
+					log.Default().Println(err)
+					return false
+				}
+
+				if result == boolValue {
+					return true
+				}
+			}
+
 			if fmt.Sprintf("%v", result) == value {
 				return true
 			}
 		case Contains:
-			if fmt.Sprintf("%v", result) == value {
-				return true
+			switch f.Type {
+			case String:
+				return strings.Contains(fmt.Sprintf("%v", result), value)
 			}
+			return false
 		case NotEquals:
+			switch f.Type {
+			case Int:
+				intValue, err := parseInt(value)
+				if err != nil {
+					log.Default().Println(err)
+					return false
+				}
+
+				if result != intValue {
+					return true
+				}
+			case Bool:
+				boolValue, err := parseBool(value)
+				if err != nil {
+					log.Default().Println(err)
+					return false
+				}
+
+				if result != boolValue {
+					return true
+				}
+			}
+
 			if fmt.Sprintf("%v", result) != value {
 				return true
 			}
 		case GreaterThan:
-			if fmt.Sprintf("%v", result) > value {
-				return true
+			if f.Type == Int {
+				// parse value to int
+				intValue, err := strconv.Atoi(value)
+				if err != nil {
+					log.Default().Println(err)
+					return false
+				}
+				if result.(int) > intValue {
+					return true
+				}
 			}
+			return false
 		case LessThan:
-			if fmt.Sprintf("%v", result) < value {
-				return true
+			if f.Type == Int {
+				// parse value to int
+				intValue, err := strconv.Atoi(value)
+				if err != nil {
+					log.Default().Println(err)
+					return false
+				}
+				if result.(int) < intValue {
+					return true
+				}
 			}
+			return false
 		case GreaterOrEquals:
-			if fmt.Sprintf("%v", result) >= value {
-				return true
+			if f.Type == Int {
+				// parse value to int
+				intValue, err := strconv.Atoi(value)
+				if err != nil {
+					log.Default().Println(err)
+					return false
+				}
+				if result.(int) >= intValue {
+					return true
+				}
 			}
+			return false
 		case LessOrEquals:
-			if fmt.Sprintf("%v", result) <= value {
-				return true
+			if f.Type == Int {
+				// parse value to int
+				intValue, err := strconv.Atoi(value)
+				if err != nil {
+					log.Default().Println(err)
+					return false
+				}
+				if result.(int) <= intValue {
+					return true
+				}
 			}
+			return false
 
-		}
-
-		resultStr := fmt.Sprintf("%v", result)
-		if resultStr == value {
-			return true
 		}
 	}
 

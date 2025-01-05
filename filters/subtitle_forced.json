@@ -5,5 +5,5 @@
         "not equals"
     ],
     "jsonPath": "$.Subtitle[*].tags.forced",
-    "type": "int"
+    "type": "bool"
 }

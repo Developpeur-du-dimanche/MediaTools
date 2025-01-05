@@ -83,6 +83,14 @@ func (c *ConditionalWidget) createCustomValueWidget(filter jsonfilter.Filter) {
 		valueWidget.(*customs.NumericalEntry).OnChanged = func(s string) {
 			c.value = s
 		}
+	case jsonfilter.Bool:
+		boolWidget := widget.NewSelect([]string{"true", "false"}, func(s string) {
+			c.value = s
+		})
+		boolWidget.SetSelectedIndex(0)
+		boolWidget.Enable()
+		c.container.Objects[2] = boolWidget
+		return
 	default:
 		valueWidget = widget.NewEntry()
 		valueWidget.(*widget.Entry).OnChanged = func(s string) {
