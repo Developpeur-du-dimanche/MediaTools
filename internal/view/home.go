@@ -17,27 +17,27 @@ import (
 )
 
 type HomeView struct {
-	window        *fyne.Window
+	window        fyne.Window
 	list          *components.FileListComponent
 	configuration configuration.Configuration
 }
 
-func NewHomeView(window *fyne.Window, configuration configuration.Configuration) View {
+func NewHomeView(app fyne.App, configuration configuration.Configuration) View {
 
 	home := &HomeView{
-		window:        window,
+		window:        app.NewWindow("MediaTools"),
 		configuration: configuration,
 	}
 
 	screen := screenshot.GetDisplayBounds(0)
-	(*home.window).Resize(fyne.NewSize(float32(screen.Dx()/2), float32(screen.Dy()/2)))
+	home.window.Resize(fyne.NewSize(float32(screen.Dx()/2), float32(screen.Dy()/2)))
 
-	list := components.NewFileListComponent(home.window)
+	list := components.NewFileListComponent(&home.window)
 
 	home.list = list
 
-	(*home.window).SetContent(home.Content())
-	(*home.window).SetMainMenu(home.GetMainMenu())
+	home.window.SetContent(home.Content())
+	home.window.SetMainMenu(home.GetMainMenu())
 
 	return home
 }
@@ -62,9 +62,9 @@ func (h HomeView) Content() fyne.CanvasObject {
 		h.list,
 	)
 
-	body.Resize(((*h.window).Canvas().Size()))
+	body.Resize(h.window.Canvas().Size())
 
-	layout := container.NewAdaptiveGrid(2, body, components.NewCustomAppTabs(h.window, h.list.GetFiles()).
+	layout := container.NewAdaptiveGrid(2, body, components.NewCustomAppTabs(h.GetWindow(), h.list.GetFiles()).
 		AddTabItem(
 			lang.L("filter"), components.NewFilterComponent,
 		).AddTabItem(
@@ -77,7 +77,7 @@ func (h HomeView) Content() fyne.CanvasObject {
 }
 
 func (h *HomeView) GetWindow() *fyne.Window {
-	return h.window
+	return &h.window
 }
 
 func (h *HomeView) GetMainMenu() *fyne.MainMenu {
@@ -122,7 +122,8 @@ func (h *HomeView) GetMainMenu() *fyne.MainMenu {
 }
 
 func (h *HomeView) ShowAndRun() {
-	(*h.window).ShowAndRun()
+	h.window.SetContent(h.Content())
+	h.window.ShowAndRun()
 }
 
 func (h *HomeView) OpenFileDialog() *dialog.FileDialog {

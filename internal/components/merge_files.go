@@ -79,6 +79,8 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 				f.Merge()
 			}, *f.window).Show()
 			return
+		} else {
+			f.Merge()
 		}
 	})
 
@@ -218,6 +220,8 @@ func (f *MergeFiles) Merge() {
 	if err != nil {
 		dialog.ShowError(err, *f.window)
 	}
+
+	dialog.NewConfirm("Merge succeed", "ok", func(b bool) {}, *f.window).Show()
 }
 
 func (f *MergeFiles) MergeFiles(files []inputFiles, output string) error {
@@ -262,7 +266,7 @@ func (f *MergeFiles) MergeFiles(files []inputFiles, output string) error {
 		return err
 	}
 
-	return os.Remove(txtFile.Name())
+	return nil
 }
 
 func (f *MergeFiles) createTempFile(files []inputFiles, output string) (*os.File, error) {

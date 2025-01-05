@@ -21,7 +21,7 @@ type configuration struct {
 	preferences fyne.Preferences
 }
 
-func NewConfiguration(app fyne.App, window *fyne.Window) Configuration {
+func NewConfiguration(app fyne.App) Configuration {
 
 	preferences := app.Preferences()
 	extensions := preferences.StringList("extension")
@@ -49,10 +49,12 @@ func NewConfiguration(app fyne.App, window *fyne.Window) Configuration {
 		// get ffmpeg from path
 		path, err := exec.LookPath("ffmpeg")
 
+		w := fyne.CurrentApp().NewWindow(lang.L("ffmpeg_not_found"))
+		w.Resize(fyne.NewSize(400, 100))
+		w.Show()
+
 		if err != nil {
-			dialog.ShowInformation("MediaTools", lang.L("ffmpeg_not_found"), *window)
-		} else {
-			preferences.SetString("ffmpeg", path)
+			dialog.NewConfirm(lang.L("Error"), lang.L("ffmpeg_not_found"), func(b bool) {}, w)
 		}
 
 		preferences.SetString("ffmpeg", path)
