@@ -1,14 +1,16 @@
 package components
 
 import (
+	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/helper"
 	jsonfilter "github.com/Developpeur-du-dimanche/MediaTools/pkg/filter"
@@ -21,6 +23,8 @@ type TrackRemoverComponent struct {
 	fileList          *list.List[*helper.FileMetadata]
 	window            *fyne.Window
 	removeTrackButton *widget.Button
+	processText       *widget.Label
+	procesPopup       *widget.PopUp
 }
 
 type TrackRemoverCondition string
@@ -40,6 +44,7 @@ func NewTrackRemoverComponent(window *fyne.Window, fileList *list.List[*helper.F
 		fileList:          fileList,
 		window:            window,
 		removeTrackButton: widget.NewButton("Remove", nil),
+		processText:       widget.NewLabel(""),
 	}
 }
 
@@ -144,6 +149,8 @@ func (f *TrackRemoverComponent) Content() fyne.CanvasObject {
 		f.RemoveTrack(&objects)
 	}
 
+	f.procesPopup = widget.NewPopUp(f.processText, (*f.window).Canvas())
+
 	return container.NewBorder(nil, f.removeTrackButton, nil, nil, tree)
 }
 
@@ -158,8 +165,9 @@ func (f *TrackRemoverComponent) checkId(stream *ffprobe.Stream, condition TrackR
 		return stream.Index == idInt
 	case TrackRemoverNotEquals:
 		return stream.Index != idInt
+	default:
+		return false
 	}
-	return false
 }
 
 func (f *TrackRemoverComponent) checkTitle(stream *ffprobe.Stream, condition TrackRemoverCondition, title string) bool {
@@ -198,88 +206,45 @@ type StreamFileRemove struct {
 func (f *TrackRemoverComponent) RemoveTrack(trackRemover *[]fyne.CanvasObject) {
 	streamToRemove := []StreamFileRemove{}
 	for _, file := range f.fileList.GetItems() {
-		streams := []*ffprobe.Stream{}
-		for _, stream := range file.GetVideoStreams() {
-			for _, track := range *trackRemover {
-				trackRemover := track.(*TrackFilter)
-				switch trackRemover.condition {
+		var streams []*ffprobe.Stream
+
+		for _, track := range *trackRemover {
+			tr := track.(*TrackFilter)
+
+			var streamsToCheck []*ffprobe.Stream
+			switch tr.StreamType {
+			case Video:
+				streamsToCheck = file.GetVideoStreams()
+			case Audio:
+				streamsToCheck = file.GetAudioStreams()
+			case Subtitle:
+				streamsToCheck = file.GetSubtitleStreams()
+			}
+
+			for _, stream := range streamsToCheck {
+				switch tr.condition {
 				case "ignore":
 					continue
 				case "equals":
-					if trackRemover.filter(stream, TrackRemoverEquals, trackRemover.value) {
+					if tr.filter(stream, TrackRemoverEquals, tr.value) {
 						streams = append(streams, stream)
 					}
 				case "not equals":
-					if trackRemover.filter(stream, TrackRemoverNotEquals, trackRemover.value) {
+					if tr.filter(stream, TrackRemoverNotEquals, tr.value) {
 						streams = append(streams, stream)
 					}
 				case "contains":
-					if trackRemover.filter(stream, TrackRemoverContains, trackRemover.value) {
+					if tr.filter(stream, TrackRemoverContains, tr.value) {
 						streams = append(streams, stream)
 					}
 				case "not contains":
-					if trackRemover.filter(stream, TrackRemoverNotContains, trackRemover.value) {
+					if tr.filter(stream, TrackRemoverNotContains, tr.value) {
 						streams = append(streams, stream)
 					}
-
 				}
 			}
+
 		}
-
-		for _, stream := range file.GetAudioStreams() {
-			for _, track := range *trackRemover {
-				trackRemover := track.(*TrackFilter)
-				switch trackRemover.condition {
-				case "ignore":
-					continue
-				case "equals":
-					if trackRemover.filter(stream, TrackRemoverEquals, trackRemover.value) {
-						streams = append(streams, stream)
-					}
-				case "not equals":
-					if trackRemover.filter(stream, TrackRemoverNotEquals, trackRemover.value) {
-						streams = append(streams, stream)
-					}
-				case "contains":
-					if trackRemover.filter(stream, TrackRemoverContains, trackRemover.value) {
-						streams = append(streams, stream)
-					}
-				case "not contains":
-					if trackRemover.filter(stream, TrackRemoverNotContains, trackRemover.value) {
-						streams = append(streams, stream)
-					}
-
-				}
-			}
-		}
-
-		for _, stream := range file.GetSubtitleStreams() {
-			for _, track := range *trackRemover {
-				trackRemover := track.(*TrackFilter)
-				switch trackRemover.condition {
-				case "ignore":
-					continue
-				case "equals":
-					if trackRemover.filter(stream, TrackRemoverEquals, trackRemover.value) {
-						streams = append(streams, stream)
-					}
-				case "not equals":
-					if trackRemover.filter(stream, TrackRemoverNotEquals, trackRemover.value) {
-						streams = append(streams, stream)
-					}
-				case "contains":
-					if trackRemover.filter(stream, TrackRemoverContains, trackRemover.value) {
-						streams = append(streams, stream)
-					}
-				case "not contains":
-					if trackRemover.filter(stream, TrackRemoverNotContains, trackRemover.value) {
-						streams = append(streams, stream)
-					}
-
-				}
-			}
-		}
-
 		if len(streams) > 0 {
 			streamToRemove = append(streamToRemove, StreamFileRemove{
 				stream: streams,
@@ -303,44 +268,80 @@ func (f *TrackRemoverComponent) RemoveTrack(trackRemover *[]fyne.CanvasObject) {
 
 func (f *TrackRemoverComponent) RemoveStream(s StreamFileRemove) {
 
-	// for all files, create ffmpeg command to remove the selected streams
+	var streamsIndex []string
 	for _, stream := range s.stream {
-
-		args := []string{
-			"-i", s.file.FileName,
-			"-map", "0",
-			"-map", "-1",
-			"-c", "copy",
+		var streamType string
+		switch stream.CodecType {
+		case "video":
+			streamType = "v"
+		case "audio":
+			streamType = "a"
+		case "subtitle":
+			streamType = "s"
 		}
+		streamsIndex = append(streamsIndex, fmt.Sprintf("-0:%s:%d", streamType, stream.Index))
+	}
 
-		if stream.Index > 0 {
-			args = append(args, "-map", stream.ID)
+	args := []string{
+		"-i", s.file.Directory + "/" + s.file.FileName,
+		"-map", "0",
+	}
+
+	for _, index := range streamsIndex {
+		args = append(args, "-map", index)
+	}
+
+	args = append(args, "-c", "copy", "-y", s.file.Directory+"/"+strings.TrimSuffix(s.file.FileName, filepath.Ext(s.file.FileName))+"-new."+s.file.Extension)
+
+	progress := helper.NewCmd()
+
+	totalSize, err := helper.CalculateTotalSize([]string{s.file.Directory + "/" + s.file.FileName})
+
+	if err != nil {
+		dialog.ShowError(err, *f.window)
+		return
+	}
+
+	command, err := progress.RunCommandWithProgress(args, totalSize)
+	if err != nil {
+		dialog.ShowError(err, *f.window)
+		return
+	}
+
+	f.procesPopup.Show()
+	defer f.procesPopup.Hide()
+
+	for p := range progress.CProgress {
+		if p.PercentComplete == 100 {
+			f.processText.SetText(lang.L("merging_files") + " 100%")
+			break
 		}
+		f.processText.SetText(fmt.Sprintf("%s %.1f%% (%s: %.1fx, Bitrate: %.1f kbits/s)",
+			fmt.Sprintf("Supression de piste %s", s.file.FileName),
+			p.PercentComplete,
+			lang.L("speed"),
+			p.Speed,
+			p.Bitrate))
+	}
 
-		args = append(args, "-c", "copy", "-y", s.file.FileName+"-new"+s.file.Extension)
+	err = command.Wait()
 
-		// execute command
-		exec := exec.Command("ffmpeg", args...)
+	if err != nil {
+		dialog.ShowError(err, *f.window)
+	}
 
-		err := exec.Run()
-		if err != nil {
-			dialog.ShowError(err, *f.window)
-		}
+	// remove old file
+	err = os.Remove(s.file.FileName)
 
-		// remove old file
-		err = os.Remove(s.file.FileName)
+	if err != nil {
+		dialog.ShowError(err, *f.window)
+	}
 
-		if err != nil {
-			dialog.ShowError(err, *f.window)
-		}
+	// rename new file
+	err = os.Rename(s.file.FileName+"-new"+s.file.Extension, s.file.FileName)
 
-		// rename new file
-		err = os.Rename(s.file.FileName+"-new"+s.file.Extension, s.file.FileName)
-
-		if err != nil {
-			dialog.ShowError(err, *f.window)
-		}
-
+	if err != nil {
+		dialog.ShowError(err, *f.window)
 	}
 
 }

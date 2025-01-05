@@ -1,14 +1,11 @@
 package components
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -33,18 +30,6 @@ type inputFiles struct {
 	position int
 	enabled  bool
 	metadata *helper.FileMetadata
-}
-
-type ffmpegProgress struct {
-	bitrate    float64
-	totalSize  int64
-	outTimeUs  int64
-	outTimeMs  int64
-	outTime    string
-	dupFrames  int
-	dropFrames int
-	speed      float64
-	progress   string
 }
 
 type MergeFiles struct {
@@ -225,11 +210,17 @@ func (f *MergeFiles) Merge() {
 }
 
 func (f *MergeFiles) MergeFiles(files []inputFiles, output string) error {
+	defer f.procesPopup.Hide()
 	output = strings.ReplaceAll(output, "\\", "/")
 
 	output += strings.TrimSuffix(files[0].filename, filepath.Ext(files[0].filename)) + "_merged" + filepath.Ext(files[0].filename)
 
-	totalSize, err := f.calculateTotalSize(files)
+	var filenames []string
+	for _, file := range files {
+		filenames = append(filenames, file.dir+file.filename)
+	}
+
+	totalSize, err := helper.CalculateTotalSize(filenames)
 	if err != nil {
 		return err
 	}
@@ -261,9 +252,31 @@ func (f *MergeFiles) MergeFiles(files []inputFiles, output string) error {
 		"copy",
 		output,
 	}
-	err = f.runCommandWithProgress(cmd, totalSize)
+
+	progress := helper.NewCmd()
+
+	command, err := progress.RunCommandWithProgress(cmd, totalSize)
 	if err != nil {
 		return err
+	}
+
+	for p := range progress.CProgress {
+		if p.PercentComplete == 100 {
+			f.processText.SetText(lang.L("merging_files") + " 100%")
+			break
+		}
+		f.processText.SetText(fmt.Sprintf("%s %.1f%% (%s: %.1fx, Bitrate: %.1f kbits/s)",
+			lang.L("merging_files"),
+			p.PercentComplete,
+			lang.L("speed"),
+			p.Speed,
+			p.Bitrate))
+	}
+
+	err = command.Wait()
+
+	if err != nil {
+		dialog.ShowError(err, *f.window)
 	}
 
 	return nil
@@ -289,143 +302,4 @@ func (f *MergeFiles) createTempFile(files []inputFiles, output string) (*os.File
 	}
 
 	return txtFile, nil
-}
-
-func (f *MergeFiles) calculateTotalSize(files []inputFiles) (int64, error) {
-	var totalSize int64
-	for _, file := range files {
-		// Normaliser le chemin avant d'accéder au fichier
-		fileInfo, err := os.Stat(file.dir + file.filename)
-		if err != nil {
-			return 0, err
-		}
-		totalSize += fileInfo.Size()
-	}
-	return totalSize, nil
-}
-
-func (f *MergeFiles) runCommandWithProgress(cmd []string, totalSize int64) error {
-	path := fyne.CurrentApp().Preferences().String("ffmpeg")
-	if path == "" {
-		return errors.New(lang.L("ffmpeg_not_found"))
-	}
-
-	// Normaliser le chemin de FFmpeg
-	path = strings.ReplaceAll(path, "\\", "/")
-
-	command := exec.Command(path, cmd...)
-
-	// print command
-	fmt.Printf("Running command: %s %s\n", path, strings.Join(command.Args, " "))
-
-	helper.RunCmdBackground(command)
-
-	stdout, err := command.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
-	command.Stderr = os.Stderr
-
-	if err := command.Start(); err != nil {
-		return err
-	}
-
-	scanner := bufio.NewScanner(stdout)
-	progress := &ffmpegProgress{}
-
-	var lines []string
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if line == "progress=continue" {
-			f.parseProgressBlock(lines, progress)
-
-			if totalSize > 0 {
-				percentComplete := float64(progress.totalSize) / float64(totalSize) * 100
-
-				f.processText.SetText(fmt.Sprintf("%s %.1f%% (%s: %.1fx, Bitrate: %.1f kbits/s)",
-					lang.L("merging_files"),
-					percentComplete,
-					lang.L("speed"),
-					progress.speed,
-					progress.bitrate))
-			}
-
-			lines = []string{}
-		} else if line == "progress=end" {
-			f.processText.SetText(lang.L("merging_files") + " 100%")
-			break
-		} else {
-			lines = append(lines, line)
-		}
-	}
-
-	return command.Wait()
-}
-
-func (f *MergeFiles) parseProgressBlock(lines []string, progress *ffmpegProgress) {
-	for _, line := range lines {
-		// Diviser sur le premier "=" seulement
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		switch key {
-		case "bitrate":
-			// Extraire uniquement les chiffres et le point décimal
-			value = extractNumber(value)
-			progress.bitrate, _ = strconv.ParseFloat(value, 64)
-		case "total_size":
-			value = extractNumber(value)
-			progress.totalSize, _ = strconv.ParseInt(value, 10, 64)
-		case "out_time_us":
-			value = extractNumber(value)
-			progress.outTimeUs, _ = strconv.ParseInt(value, 10, 64)
-		case "out_time_ms":
-			value = extractNumber(value)
-			progress.outTimeMs, _ = strconv.ParseInt(value, 10, 64)
-		case "out_time":
-			progress.outTime = value
-		case "dup_frames":
-			value = extractNumber(value)
-			progress.dupFrames, _ = strconv.Atoi(value)
-		case "drop_frames":
-			value = extractNumber(value)
-			progress.dropFrames, _ = strconv.Atoi(value)
-		case "speed":
-			value = extractNumber(value)
-			progress.speed, _ = strconv.ParseFloat(value, 64)
-		case "progress":
-			progress.progress = value
-		}
-	}
-}
-
-// extractNumber extrait uniquement les chiffres et le point décimal d'une chaîne
-func extractNumber(s string) string {
-	var result strings.Builder
-	hasDecimal := false
-
-	// Gérer le signe négatif au début
-	if strings.HasPrefix(strings.TrimSpace(s), "-") {
-		result.WriteRune('-')
-		s = strings.TrimPrefix(strings.TrimSpace(s), "-")
-	}
-
-	for _, c := range s {
-		if c >= '0' && c <= '9' {
-			result.WriteRune(c)
-		} else if c == '.' && !hasDecimal {
-			result.WriteRune(c)
-			hasDecimal = true
-		}
-	}
-
-	return result.String()
 }
