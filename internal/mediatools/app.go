@@ -25,7 +25,7 @@ func (a *Application) SetView(view view.View) {
 }
 
 func (a *Application) Run() {
-	homeView := view.NewHomeView(a.window, a.configuration)
+	homeView := view.NewHomeView(&a.window, a.configuration)
 	a.SetView(homeView)
 	homeView.ShowAndRun()
 

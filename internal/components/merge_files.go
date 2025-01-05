@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -26,9 +28,11 @@ type MergeFilesContract interface {
 }
 
 type inputFiles struct {
-	file     string
+	dir      string
+	filename string
 	position int
 	enabled  bool
+	metadata *helper.FileMetadata
 }
 
 type ffmpegProgress struct {
@@ -64,8 +68,20 @@ func NewMergeFilesComponent(window *fyne.Window, fileList *list.List[*helper.Fil
 func (f *MergeFiles) Content() fyne.CanvasObject {
 
 	mergeButton := widget.NewButton(lang.L("merge"), func() {
-		f.Merge()
+
+		err := f.checkFileIntegrity()
+
+		if err != nil {
+			dialog.NewCustomConfirm("Error", "Confirmer", "Annuler", widget.NewLabel(err.Error()), func(b bool) {
+				if !b {
+					return
+				}
+				f.Merge()
+			}, *f.window).Show()
+			return
+		}
 	})
+
 	outputFile := widget.NewEntry()
 	outputFile.SetPlaceHolder(lang.L("output_folder"))
 	outputFile.OnChanged = func(s string) {
@@ -81,17 +97,24 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 		},
 		func(i widget.ListItemID, item fyne.CanvasObject) {
 			item.(*fyne.Container).Objects[0].(*widget.Check).Checked = f.inputFiles[i].enabled
+			item.(*fyne.Container).Objects[0].(*widget.Check).OnChanged = func(b bool) {
+				f.inputFiles[i].enabled = b
+			}
 			item.(*fyne.Container).Objects[1].(*customs.NumericalEntry).SetText(fmt.Sprintf("%d", f.inputFiles[i].position))
-			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(f.inputFiles[i].file)
+			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(f.inputFiles[i].filename)
 			// refresh ui for check box
 			item.Refresh()
 		},
 	)
 
 	refreshButton := widget.NewButton(lang.L("refresh"), func() {
-		f.inputFiles = []inputFiles{}
+		f.inputFiles = make([]inputFiles, len(f.listFiles.GetItems()))
 		for i, file := range f.listFiles.GetItems() {
-			f.inputFiles = append(f.inputFiles, inputFiles{file.FileName, i, true})
+			if !strings.HasSuffix(file.Directory, "/") {
+				file.Directory = file.Directory + "/"
+			}
+			file.Directory = strings.ReplaceAll(file.Directory, "\\", "/")
+			f.inputFiles[i] = inputFiles{file.Directory, file.FileName, i, true, file}
 		}
 		listFiles.Refresh()
 	})
@@ -133,19 +156,57 @@ func (f *MergeFiles) Content() fyne.CanvasObject {
 	return content
 }
 
+func (f *MergeFiles) checkFileIntegrity() error {
+	// check if width and height are the same
+	// check if codec is the same
+	var width, height int
+	var codec string
+
+	for i, file := range f.inputFiles {
+		if i == 0 {
+			width = file.metadata.GetVideoStreams()[0].Width
+			height = file.metadata.GetVideoStreams()[0].Height
+			codec = file.metadata.GetVideoStreams()[0].CodecName
+			continue
+		}
+
+		if width != file.metadata.GetVideoStreams()[0].Width || height != file.metadata.GetVideoStreams()[0].Height {
+			return errors.New(lang.L("width_height_not_same"))
+		}
+
+		if codec != file.metadata.GetVideoStreams()[0].CodecName {
+			return errors.New(lang.L("codec_not_same"))
+		}
+	}
+
+	return nil
+}
+
 func (f *MergeFiles) Merge() {
+
+	if f.outputFile == "" && len(f.inputFiles) > 0 {
+		f.outputFile = f.inputFiles[0].dir
+		// normaliser le chemin
+		f.outputFile = strings.ReplaceAll(f.outputFile, "\\", "/")
+		if !strings.HasSuffix(f.outputFile, "/") {
+			f.outputFile = f.outputFile + "/"
+		}
+	}
+
 	f.processText.SetText(lang.L("merging_files") + " 0%")
 	f.procesPopup.Show()
 
 	defer f.procesPopup.Hide()
 
-	var finalInputFiles []string
 	sort.SliceStable(f.inputFiles, func(i, j int) bool {
 		return f.inputFiles[i].position < f.inputFiles[j].position
 	})
+
+	var finalInputFiles []inputFiles
+
 	for _, file := range f.inputFiles {
 		if file.enabled {
-			finalInputFiles = append(finalInputFiles, file.file)
+			finalInputFiles = append(finalInputFiles, file)
 		}
 	}
 
@@ -153,14 +214,17 @@ func (f *MergeFiles) Merge() {
 		return
 	}
 
-	err := f.MergeFiles(finalInputFiles, f.outputFile+"output_"+finalInputFiles[0])
+	err := f.MergeFiles(finalInputFiles, f.outputFile)
 	if err != nil {
 		dialog.ShowError(err, *f.window)
 	}
 }
 
-func (f *MergeFiles) MergeFiles(files []string, output string) error {
+func (f *MergeFiles) MergeFiles(files []inputFiles, output string) error {
 	output = strings.ReplaceAll(output, "\\", "/")
+
+	output += strings.TrimSuffix(files[0].filename, filepath.Ext(files[0].filename)) + "_merged" + filepath.Ext(files[0].filename)
+
 	totalSize, err := f.calculateTotalSize(files)
 	if err != nil {
 		return err
@@ -170,10 +234,29 @@ func (f *MergeFiles) MergeFiles(files []string, output string) error {
 	if err != nil {
 		return err
 	}
-	defer txtFile.Close()
+	defer func() {
+		txtFile.Close()
+		err := os.Remove(txtFile.Name())
+		if err != nil {
+			dialog.ShowError(err, *f.window)
+		}
+	}()
 
 	normalizedTxtPath := strings.ReplaceAll(txtFile.Name(), "\\", "/")
-	cmd := fmt.Sprintf("-progress pipe:1 -y -f concat -safe 0 -i %s -c copy %s", normalizedTxtPath, output)
+	cmd := []string{
+		"-progress",
+		"pipe:1",
+		"-y",
+		"-f",
+		"concat",
+		"-safe",
+		"0",
+		"-i",
+		normalizedTxtPath,
+		"-c",
+		"copy",
+		output,
+	}
 	err = f.runCommandWithProgress(cmd, totalSize)
 	if err != nil {
 		return err
@@ -182,15 +265,20 @@ func (f *MergeFiles) MergeFiles(files []string, output string) error {
 	return os.Remove(txtFile.Name())
 }
 
-func (f *MergeFiles) createTempFile(files []string, output string) (*os.File, error) {
-	txtFile, err := os.Create(output + ".txt")
+func (f *MergeFiles) createTempFile(files []inputFiles, output string) (*os.File, error) {
+
+	// get current date time
+	now := time.Now()
+
+	txtFile, err := os.Create(strings.TrimSuffix(output, filepath.Ext(output)) + now.Format("2006-01-02_15-04-05") + "_temp.txt")
 	if err != nil {
 		return nil, err
 	}
 
 	for _, file := range files {
-		normalizedPath := strings.ReplaceAll(file, "\\", "/")
-		_, err := txtFile.WriteString(fmt.Sprintf("%s '%s'\n", lang.L("file"), normalizedPath))
+		// escape "'" in file path where "'" = "'\''"
+		filename := strings.ReplaceAll(file.dir+file.filename, "'", "'\\''")
+		_, err := txtFile.WriteString(fmt.Sprintf(`%s '%s'`+"\n", "file", filename))
 		if err != nil {
 			return nil, err
 		}
@@ -199,12 +287,11 @@ func (f *MergeFiles) createTempFile(files []string, output string) (*os.File, er
 	return txtFile, nil
 }
 
-func (f *MergeFiles) calculateTotalSize(files []string) (int64, error) {
+func (f *MergeFiles) calculateTotalSize(files []inputFiles) (int64, error) {
 	var totalSize int64
 	for _, file := range files {
 		// Normaliser le chemin avant d'accéder au fichier
-		normalizedPath := strings.ReplaceAll(file, "\\", "/")
-		fileInfo, err := os.Stat(normalizedPath)
+		fileInfo, err := os.Stat(file.dir + file.filename)
 		if err != nil {
 			return 0, err
 		}
@@ -213,7 +300,7 @@ func (f *MergeFiles) calculateTotalSize(files []string) (int64, error) {
 	return totalSize, nil
 }
 
-func (f *MergeFiles) runCommandWithProgress(cmd string, totalSize int64) error {
+func (f *MergeFiles) runCommandWithProgress(cmd []string, totalSize int64) error {
 	path := fyne.CurrentApp().Preferences().String("ffmpeg")
 	if path == "" {
 		return errors.New(lang.L("ffmpeg_not_found"))
@@ -222,7 +309,10 @@ func (f *MergeFiles) runCommandWithProgress(cmd string, totalSize int64) error {
 	// Normaliser le chemin de FFmpeg
 	path = strings.ReplaceAll(path, "\\", "/")
 
-	command := exec.Command(path, strings.Split(cmd, " ")...)
+	command := exec.Command(path, cmd...)
+
+	// print command
+	fmt.Printf("Running command: %s %s\n", path, strings.Join(command.Args, " "))
 
 	helper.RunCmdBackground(command)
 
