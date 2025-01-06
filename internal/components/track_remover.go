@@ -59,7 +59,7 @@ func (f *TrackRemoverComponent) Content() fyne.CanvasObject {
 			case "Audio":
 				return []widget.TreeNodeID{"a_id", "a_title", "a_lang"}
 			case "Subtitles":
-				return []widget.TreeNodeID{"s_id", "s_title", "s_lang"}
+				return []widget.TreeNodeID{"s_id", "s_title", "s_lang", "s_codec"}
 			default:
 				return []string{}
 			}
@@ -125,6 +125,10 @@ func (f *TrackRemoverComponent) Content() fyne.CanvasObject {
 				co.(*TrackFilter).SetText("Language")
 				co.(*TrackFilter).StreamType = Subtitle
 				co.(*TrackFilter).filter = f.checkLanguage
+			case "s_codec":
+				co.(*TrackFilter).SetText("Codec")
+				co.(*TrackFilter).StreamType = Subtitle
+				co.(*TrackFilter).filter = f.checkCodec
 			}
 
 			alreadyAppend := false
@@ -209,24 +213,80 @@ func (f *TrackRemoverComponent) checkLanguage(stream *ffprobe.Stream, condition 
 	return false
 }
 
+func (f *TrackRemoverComponent) checkCodec(stream *ffprobe.Stream, condition TrackRemoverCondition, codec string) bool {
+	switch condition {
+	case TrackRemoverEquals:
+		return stream.CodecName == codec
+	case TrackRemoverContains:
+		return strings.Contains(stream.CodecName, codec)
+	case TrackRemoverNotEquals:
+		return stream.CodecName != codec
+	case TrackRemoverNotContains:
+		return !strings.Contains(stream.CodecName, codec)
+	}
+	return false
+}
+
 type StreamFileRemove struct {
 	stream []*ffprobe.Stream
 	file   *helper.FileMetadata
 }
 
 func (f *TrackRemoverComponent) removeAllAttachment() {
+
 	dialog := dialog.NewConfirm("Confirm deletion", "Are you sure you want to delete all attachments?", func(b bool) {
 		if b {
 			for _, file := range f.fileList.GetItems() {
+
+				// create args with -map 0:CODE_TYPE:INDEX for each stream
+				streams := []ffprobe.Stream{}
+
+				for i, stream := range file.GetVideoStreams() {
+					// copy stream
+					s := *stream
+					s.Index = i
+					streams = append(streams, s)
+				}
+
+				for i, stream := range file.GetAudioStreams() {
+					// copy stream
+					s := *stream
+					s.Index = i
+					streams = append(streams, s)
+				}
+
+				for i, stream := range file.GetSubtitleStreams() {
+					// copy stream
+					s := *stream
+					s.Index = i
+					streams = append(streams, s)
+				}
+
+				if len(streams) == 0 {
+					continue
+				}
+
 				args := []string{
 					"-progress",
 					"pipe:1",
 					"-i", file.Directory + "/" + file.FileName,
-					"-map", "0",
-					"-c", "copy",
-					"-map", "-0:d",
-					"-y", file.Directory + "/" + strings.TrimSuffix(file.FileName, filepath.Ext(file.FileName)) + "-new." + file.Extension,
 				}
+
+				for _, stream := range streams {
+					var streamType string
+					switch stream.CodecType {
+					case "video":
+						streamType = "v"
+					case "audio":
+						streamType = "a"
+					case "subtitle":
+						streamType = "s"
+					}
+					args = append(args, "-map", "0:"+streamType+":"+strconv.Itoa(stream.Index))
+				}
+				args = append(args, "-y", "-c", "copy", file.Directory+"/"+strings.TrimSuffix(file.FileName, filepath.Ext(file.FileName))+"-new."+file.Extension)
+				f.procesPopup.Show()
+				defer f.procesPopup.Hide()
 				progress := helper.NewCmd()
 
 				totalSize, err := helper.CalculateTotalSize([]string{file.Directory + "/" + file.FileName})
@@ -241,9 +301,6 @@ func (f *TrackRemoverComponent) removeAllAttachment() {
 					dialog.ShowError(err, *f.window)
 					return
 				}
-
-				f.procesPopup.Show()
-				defer f.procesPopup.Hide()
 
 				for p := range progress.CProgress {
 					if p.PercentComplete == 100 {

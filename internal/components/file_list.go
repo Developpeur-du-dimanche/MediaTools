@@ -35,7 +35,12 @@ func NewFileListComponent(parent *fyne.Window) *FileListComponent {
 			return files.GetLength()
 		},
 		func() fyne.CanvasObject {
-			return container.NewHBox(widget.NewButtonWithIcon("", theme.DeleteIcon(), nil), widget.NewButtonWithIcon("", theme.InfoIcon(), nil), widget.NewLabel(""))
+			return container.NewHBox(
+				widget.NewButtonWithIcon("", theme.DeleteIcon(), nil),
+				widget.NewButtonWithIcon("", theme.InfoIcon(), nil),
+				widget.NewButtonWithIcon("", theme.DocumentIcon(), nil),
+				widget.NewLabel(""),
+			)
 		},
 		func(i widget.ListItemID, item fyne.CanvasObject) {
 
@@ -48,7 +53,14 @@ func NewFileListComponent(parent *fyne.Window) *FileListComponent {
 				d.Resize(fyne.NewSize(400, 400))
 				d.Show()
 			}
-			item.(*fyne.Container).Objects[2].(*widget.Label).SetText(files.GetItem(i).FileName)
+
+			item.(*fyne.Container).Objects[2].(*widget.Button).OnTapped = func() {
+				d := dialog.NewCustom("Edit", lang.L("close"), NewFileEditComponent(parent, c.files.GetItem(i)), *parent)
+				d.Resize(fyne.NewSize(400, 400))
+				d.Show()
+			}
+
+			item.(*fyne.Container).Objects[3].(*widget.Label).SetText(files.GetItem(i).FileName)
 		},
 	)
 
