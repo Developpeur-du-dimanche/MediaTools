@@ -1,9 +1,0 @@
-{
-    "name": "Audio Language",
-    "conditions": [
-        "equals",
-        "not equals"
-    ],
-    "jsonPath": "$.Audio[*].TagList.Language",
-    "type": "string"
-}

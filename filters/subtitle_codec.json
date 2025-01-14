@@ -1,9 +1,0 @@
-{
-    "name": "Subtitle Codec",
-    "conditions": [
-        "equals",
-        "not equals"
-    ],
-    "jsonPath": "$.Subtitle[*].codec_name",
-    "type": "string"
-}
