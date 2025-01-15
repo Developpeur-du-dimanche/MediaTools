@@ -3,22 +3,20 @@ package main
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/mediatools"
 )
 
 func main() {
-	a := app.New()
+
+	a := app.NewWithID("com.TOomaAh.mediatools")
+	app.SetMetadata(fyne.AppMetadata{
+		Name:    "MediaTools",
+		Version: "0.1",
+	})
 
 	a.Settings().SetTheme(newMediaToolsTheme())
 
-	w := a.NewWindow("Media Tools")
-	w.Resize(fyne.NewSize(800, 600))
+	mt := mediatools.NewMediaTools(a)
+	mt.Run()
 
-	w.SetContent(container.NewVBox(
-		widget.NewButton("Button", func() {}),
-		widget.NewButton("Disabled", func() {}),
-	))
-
-	w.ShowAndRun()
 }

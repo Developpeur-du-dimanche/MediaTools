@@ -47,5 +47,9 @@ func (t *mediaToolsTheme) Size(name fyne.ThemeSizeName) float32 {
 		return 12
 	}
 
+	if name == theme.SizeNamePadding {
+		return 4
+	}
+
 	return t.Theme.Size(name)
 }
