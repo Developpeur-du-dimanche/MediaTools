@@ -2,6 +2,8 @@ package components
 
 import (
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 )
@@ -17,26 +19,34 @@ type ListView struct {
 }
 
 func NewListView(items *list.List[string], onRefresh func()) *ListView {
-	lv := &ListView{OnUpdate: make(chan bool), list: widget.NewList(
+	lv := &ListView{OnUpdate: make(chan bool),
+		items:     items,
+		OnRefresh: onRefresh,
+	}
+	lv.list = widget.NewList(
 		func() int {
 			return items.GetLength()
 		},
 		func() fyne.CanvasObject {
-			return widget.NewLabel("Item")
+			return container.NewHBox(
+				widget.NewButtonWithIcon("", theme.DeleteIcon(), nil),
+				widget.NewLabel(""),
+			)
 		},
 		func(i widget.ListItemID, o fyne.CanvasObject) {
-			o.(*widget.Label).SetText(items.GetItem(int(i)))
+			root := o.(*fyne.Container)
+			root.Objects[0].(*widget.Button).OnTapped = func() {
+				items.RemoveItemAt(int(i))
+				lv.Refresh()
+			}
+			root.Objects[1].(*widget.Label).SetText(items.GetItem(int(i)))
 		},
-	),
-		items:     items,
-		OnRefresh: onRefresh,
-	}
+	)
 	return lv
 }
 
 func (lv *ListView) CreateRenderer() fyne.WidgetRenderer {
-
-	return lv.list.CreateRenderer()
+	return widget.NewSimpleRenderer(lv.list)
 }
 
 func (lv *ListView) AddItem(item string) {

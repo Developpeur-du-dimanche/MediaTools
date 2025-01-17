@@ -26,8 +26,6 @@ func NewMediaTools(app fyne.App) *MediaTools {
 
 	items := list.NewList[string]()
 
-	items.AddItem("Item 1")
-
 	listView := components.NewListView(items, nil)
 
 	history := components.NewLastScanSelector(func(path string) {
@@ -49,8 +47,6 @@ func NewMediaTools(app fyne.App) *MediaTools {
 		nil, nil, nil, listView, w, func() {
 			listView.Refresh()
 		})
-
-	listView.OnRefresh = burgerMenu.Refresh
 
 	w.SetContent(container.NewBorder(
 		burgerMenu, nil, nil, nil,

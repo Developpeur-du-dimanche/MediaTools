@@ -108,6 +108,7 @@ type burgerMenuRenderer struct {
 // Layout gère le positionnement des éléments
 func (r *burgerMenuRenderer) Layout(size fyne.Size) {
 	// Dimensions des lignes du burger
+
 	lineWidth := float32(25)
 	lineHeight := float32(2)
 	spacing := float32(6)
@@ -122,8 +123,7 @@ func (r *burgerMenuRenderer) Layout(size fyne.Size) {
 
 	// Positionner le panel du menu
 	if r.menu.expanded {
-		r.menuPanel.Resize(fyne.NewSize(200, 300))
-
+		r.menuPanel.Resize(fyne.NewSize(r.menu.window.Canvas().Size().Width-200, 300))
 		r.menuPanel.Move(fyne.NewPos(0, size.Height))
 	}
 }
