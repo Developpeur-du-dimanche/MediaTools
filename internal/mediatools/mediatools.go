@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components"
+	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
 	"github.com/kbinani/screenshot"
 )
 
@@ -23,30 +24,36 @@ func NewMediaTools(app fyne.App) *MediaTools {
 		float32(screen.Dx()/2), float32(screen.Dy()/2),
 	))
 
-	//listView := components.NewListView(items)
+	items := list.NewList[string]()
+
+	items.AddItem("Item 1")
+
+	listView := components.NewListView(items, nil)
 
 	history := components.NewLastScanSelector(func(path string) {
 		fmt.Printf("Folder selected: %s\n", path)
 	})
 
-	openFile := components.NewOpenFile(&w, func(path string) {
-		fmt.Printf("File opened: %s\n", path)
-		history.AddFolder(path)
-	})
+	burgerMenu := components.NewBurgerMenu(
+		container.NewHBox(
+			components.NewOpenFolder(&w, func(path string) {
+				history.AddFolder(path)
+			}, func(path string) {
+				listView.AddItem(path)
+			}),
+			components.NewOpenFile(&w, func(path string) {
+				listView.AddItem(path)
+			}),
+			history,
+		),
+		nil, nil, nil, listView, w, func() {
+			listView.Refresh()
+		})
 
-	openFolder := components.NewOpenFolder(&w, func(path string) {
-		history.AddFolder(path)
-
-	}, func(path string) {
-		fmt.Printf("File detected: %s\n", path)
-	})
+	listView.OnRefresh = burgerMenu.Refresh
 
 	w.SetContent(container.NewBorder(
-		container.NewHBox(
-			history,
-			openFile,
-			openFolder,
-		), nil, nil, nil,
+		burgerMenu, nil, nil, nil,
 		nil,
 	))
 

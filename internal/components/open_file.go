@@ -12,13 +12,13 @@ type OpenFile struct {
 	button *widget.Button
 	window *fyne.Window
 
-	onFileOpen func(path string)
+	OnFileOpen func(path string)
 }
 
 func NewOpenFile(parent *fyne.Window, onFileOpened func(path string)) *OpenFile {
 	of := &OpenFile{
 		window:     parent,
-		onFileOpen: onFileOpened,
+		OnFileOpen: onFileOpened,
 	}
 	of.button = widget.NewButtonWithIcon("Open File", theme.FileIcon(), of.openFileDialog)
 	of.ExtendBaseWidget(of)
@@ -40,8 +40,8 @@ func (of *OpenFile) openFileDialog() {
 			return
 		}
 
-		if of.onFileOpen != nil {
-			of.onFileOpen(reader.URI().String())
+		if of.OnFileOpen != nil {
+			of.OnFileOpen(reader.URI().String())
 		}
 	}, *of.window)
 	size := (*of.window).Canvas().Size()
