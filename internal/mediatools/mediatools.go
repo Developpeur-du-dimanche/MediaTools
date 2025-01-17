@@ -38,14 +38,18 @@ func NewMediaTools(app fyne.App) *MediaTools {
 				history.AddFolder(path)
 			}, func(path string) {
 				listView.AddItem(path)
+				listView.Refresh()
 			}),
 			components.NewOpenFile(&w, func(path string) {
 				listView.AddItem(path)
+				listView.Refresh()
+
 			}),
 			history,
 		),
 		nil, nil, nil, listView, w, func() {
 			listView.Refresh()
+
 		})
 
 	w.SetContent(container.NewBorder(
