@@ -51,7 +51,6 @@ func (lv *ListView) CreateRenderer() fyne.WidgetRenderer {
 
 func (lv *ListView) AddItem(item string) {
 	lv.items.AddItem(item)
-	lv.Refresh()
 }
 
 func (lv *ListView) Refresh() {
