@@ -1,68 +1,112 @@
 package mediatools
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components"
-	"github.com/Developpeur-du-dimanche/MediaTools/pkg/list"
+	"github.com/Developpeur-du-dimanche/MediaTools/pkg/medias"
 	"github.com/kbinani/screenshot"
 )
 
 type MediaTools struct {
-	app    *fyne.App
-	window *fyne.Window
+	app        *fyne.App
+	window     fyne.Window
+	listView   *components.ListView
+	burgerMenu *components.BurgerMenu
+
+	isScanning chan bool
 }
 
 func NewMediaTools(app fyne.App) *MediaTools {
 
-	w := app.NewWindow("MediaTools")
+	mediaTools := &MediaTools{
+		app:    &app,
+		window: app.NewWindow("MediaTools"),
+
+		isScanning: make(chan bool),
+	}
 
 	screen := screenshot.GetDisplayBounds(0)
-	w.Resize(fyne.NewSize(
+	mediaTools.window.Resize(fyne.NewSize(
 		float32(screen.Dx()/2), float32(screen.Dy()/2),
 	))
 
-	items := list.NewList[string]()
-
-	listView := components.NewListView(items, nil)
+	mediaTools.listView = components.NewListView(nil)
 
 	history := components.NewLastScanSelector(func(path string) {
 		fmt.Printf("Folder selected: %s\n", path)
 	})
 
+	openFolder := components.NewOpenFolder(&mediaTools.window, func(path string) {
+		history.AddFolder(path)
+	},
+		mediaTools.onNewFileDetected,
+	)
+
+	openFile := components.NewOpenFile(&mediaTools.window, mediaTools.onNewFileDetected)
+
+	openFolder.OnScanTerminated = func() {
+		mediaTools.listView.Refresh()
+	}
+
+	openFile.OnScanTerminated = func() {
+		mediaTools.listView.Refresh()
+	}
+
 	burgerMenu := components.NewBurgerMenu(
 		container.NewHBox(
-			components.NewOpenFolder(&w, func(path string) {
-				history.AddFolder(path)
-			}, func(path string) {
-				listView.AddItem(path)
-				listView.Refresh()
-			}),
-			components.NewOpenFile(&w, func(path string) {
-				listView.AddItem(path)
-				listView.Refresh()
-
+			openFolder,
+			openFile,
+			widget.NewButtonWithIcon("Clean", theme.DeleteIcon(), func() {
+				mediaTools.listView.Clear()
 			}),
 			history,
 		),
-		nil, nil, nil, listView, w, func() {
-			listView.Refresh()
-
+		nil, nil, nil, mediaTools.listView, mediaTools.window, func() {
+			mediaTools.listView.Refresh()
 		})
 
-	w.SetContent(container.NewBorder(
+	mediaTools.window.SetContent(container.NewBorder(
 		burgerMenu, nil, nil, nil,
 		nil,
 	))
 
-	return &MediaTools{
-		app:    &app,
-		window: &w,
-	}
+	return mediaTools
 }
 
 func (mt *MediaTools) Run() {
-	(*mt.window).ShowAndRun()
+	mt.window.ShowAndRun()
+}
+
+func (mt *MediaTools) onNewFileDetected(path string) {
+	mediaInfo, err := getMediaInfo(path)
+	if err != nil {
+		fmt.Printf("Error while getting media info: %s\n", err)
+		return
+	}
+
+	mt.listView.AddItem(mediaInfo)
+
+}
+
+func getMediaInfo(path string) (*medias.FfprobeResult, error) {
+	ffprobe := medias.NewFfprobe(path,
+		medias.FFPROBE_LOGLEVEL_FATAL,
+		medias.PRINT_FORMAT_JSON,
+		medias.SHOW_FORMAT,
+		medias.SHOW_STREAMS,
+		medias.EXPERIMENTAL,
+	)
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFn()
+
+	return ffprobe.Probe(ctx)
+
 }

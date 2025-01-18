@@ -16,8 +16,12 @@ type OpenFolder struct {
 	button *widget.Button
 	window *fyne.Window
 
-	onFolderOpen   func(path string)
-	onFileDetected func(path string)
+	infoDialog  *dialog.CustomDialog
+	infoMessage *widget.Label
+
+	onFolderOpen     func(path string)
+	onFileDetected   func(path string)
+	OnScanTerminated func()
 }
 
 func NewOpenFolder(parent *fyne.Window, onFolderOpened func(path string), onFileDetected func(path string)) *OpenFolder {
@@ -25,7 +29,11 @@ func NewOpenFolder(parent *fyne.Window, onFolderOpened func(path string), onFile
 		window:         parent,
 		onFolderOpen:   onFolderOpened,
 		onFileDetected: onFileDetected,
+		infoMessage:    widget.NewLabel(""),
 	}
+
+	of.infoDialog = dialog.NewCustomWithoutButtons("Media Info", of.infoMessage, *of.window)
+	of.infoDialog.Hide()
 	of.button = widget.NewButtonWithIcon("Open Folder", theme.FolderIcon(), of.openFolderDialog)
 	of.ExtendBaseWidget(of)
 	return of
@@ -56,6 +64,10 @@ func (of *OpenFolder) openFolderDialog() {
 			of.onFolderOpen(lu.Path())
 		}
 
+		of.infoDialog.Show()
+
+		defer of.infoDialog.Hide()
+
 		var path string
 
 		if of.onFolderOpen != nil {
@@ -71,7 +83,12 @@ func (of *OpenFolder) openFolderDialog() {
 							return nil
 						}
 
+						if info.IsDir() {
+							return nil
+						}
+
 						if of.onFileDetected != nil {
+							of.infoMessage.SetText("Scanning " + path)
 							of.onFileDetected(path)
 						}
 
@@ -79,10 +96,14 @@ func (of *OpenFolder) openFolderDialog() {
 					})
 				} else {
 					if of.onFileDetected != nil {
+						of.infoMessage.SetText("Scanning " + path)
 						of.onFileDetected(path)
 					}
 				}
 			}
+		}
+		if of.OnScanTerminated != nil {
+			of.OnScanTerminated()
 		}
 	}, *of.window)
 	size := (*of.window).Canvas().Size()

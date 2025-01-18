@@ -1,6 +1,8 @@
 package components
 
 import (
+	"image/color"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -21,6 +23,7 @@ type BurgerMenu struct {
 	OnRefresh func()
 	menuPanel *fyne.Container
 	window    fyne.Window
+	renderer  *burgerMenuRenderer
 }
 
 // NewBurgerMenu crée une nouvelle instance du menu burger
@@ -68,12 +71,19 @@ func (b *BurgerMenu) CreateRenderer() fyne.WidgetRenderer {
 	)
 	b.menuPanel.Hide()
 
-	return &burgerMenuRenderer{
+	// Set background color of the menu panel
+	background := canvas.NewRectangle(color.Color(color.RGBA{R: 0, G: 0, B: 0, A: 0}))
+
+	renderer := &burgerMenuRenderer{
 		menu:      b,
 		lines:     []*canvas.Line{line1, line2, line3},
-		menuPanel: b.menuPanel,
+		menuPanel: container.NewStack(background, b.menuPanel),
 		window:    b.window,
 	}
+
+	b.renderer = renderer
+
+	return renderer
 }
 
 // Tapped gère les clics sur le menu
@@ -89,11 +99,13 @@ func (b *BurgerMenu) Tapped(_ *fyne.PointEvent) {
 
 // MouseIn gère l'entrée de la souris
 func (b *BurgerMenu) MouseIn(_ *desktop.MouseEvent) {
+	b.renderer.Refresh()
 	b.Refresh()
 }
 
 // MouseOut gère la sortie de la souris
 func (b *BurgerMenu) MouseOut() {
+	b.renderer.Refresh()
 	b.Refresh()
 }
 
@@ -139,6 +151,7 @@ func (r *burgerMenuRenderer) Refresh() {
 		line.StrokeColor = theme.Color(theme.ColorNameForeground)
 		line.Refresh()
 	}
+
 }
 
 // Objects retourne tous les objets rendus

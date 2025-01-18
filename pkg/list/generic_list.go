@@ -6,6 +6,7 @@ import (
 
 type List[T comparable] struct {
 	items []T
+	count int
 	mutex *sync.Mutex
 }
 
@@ -13,12 +14,14 @@ func NewList[T comparable]() *List[T] {
 	return &List[T]{
 		items: make([]T, 0),
 		mutex: &sync.Mutex{},
+		count: 0,
 	}
 }
 
 func (l *List[T]) AddItem(item T) {
 	l.mutex.Lock()
 	l.items = append(l.items, item)
+	l.count++
 	l.mutex.Unlock()
 }
 
@@ -35,8 +38,13 @@ func (l *List[T]) RemoveItem(item T) {
 
 func (l *List[T]) RemoveItemAt(index int) {
 	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	if l.count == 0 {
+		return
+	}
 	l.items = append(l.items[:index], l.items[index+1:]...)
-	l.mutex.Unlock()
+	l.count--
+
 }
 
 func (l *List[T]) GetItems() []T {
@@ -54,6 +62,7 @@ func (l *List[T]) GetLength() int {
 func (l *List[T]) Clear() {
 	l.mutex.Lock()
 	l.items = make([]T, 0)
+	l.count = 0
 	l.mutex.Unlock()
 }
 
