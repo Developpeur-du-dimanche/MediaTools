@@ -3,6 +3,7 @@ package mediatools
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -14,88 +15,154 @@ import (
 	"github.com/kbinani/screenshot"
 )
 
+// MediaTools représente l'application principale
 type MediaTools struct {
-	app        *fyne.App
-	window     fyne.Window
-	listView   *components.ListView
-	burgerMenu *components.BurgerMenu
+	app      fyne.App
+	window   fyne.Window
+	listView *components.ListView
 
-	isScanning chan bool
+	// UI Components
+	burgerMenu  *components.BurgerMenu
+	openFolder  *components.OpenFolder
+	openFile    *components.OpenFile
+	history     *components.LastScanSelector
+	cleanButton *widget.Button
+
+	// État de l'application
+	scanState struct {
+		sync.Mutex
+		isScanning bool
+		cancel     context.CancelFunc
+	}
 }
 
+// NewMediaTools crée une nouvelle instance de l'application
 func NewMediaTools(app fyne.App) *MediaTools {
-
-	mediaTools := &MediaTools{
-		app:    &app,
+	mt := &MediaTools{
+		app:    app,
 		window: app.NewWindow("MediaTools"),
-
-		isScanning: make(chan bool),
 	}
 
+	mt.initWindow()
+	mt.initComponents()
+	mt.setupLayout()
+
+	return mt
+}
+
+// initWindow initialise la fenêtre principale
+func (mt *MediaTools) initWindow() {
 	screen := screenshot.GetDisplayBounds(0)
-	mediaTools.window.Resize(fyne.NewSize(
-		float32(screen.Dx()/2), float32(screen.Dy()/2),
+	mt.window.Resize(fyne.NewSize(
+		float32(screen.Dx()/2),
+		float32(screen.Dy()/2),
 	))
+}
 
-	mediaTools.listView = components.NewListView(nil)
+// initComponents initialise tous les composants de l'interface
+func (mt *MediaTools) initComponents() {
+	mt.listView = components.NewListView(nil)
 
-	history := components.NewLastScanSelector(func(path string) {
-		fmt.Printf("Folder selected: %s\n", path)
-	})
+	mt.history = components.NewLastScanSelector(mt.onHistoryFolderSelected)
+	mt.openFolder = components.NewOpenFolder(&mt.window, mt.onFolderOpened, mt.onNewFileDetected)
+	mt.openFile = components.NewOpenFile(&mt.window, mt.onNewFileDetected)
+	mt.cleanButton = widget.NewButtonWithIcon("Clean", theme.DeleteIcon(), mt.onCleanButtonClicked)
 
-	openFolder := components.NewOpenFolder(&mediaTools.window, func(path string) {
-		history.AddFolder(path)
-	},
-		mediaTools.onNewFileDetected,
+	// Configuration des callbacks
+	mt.openFolder.OnScanTerminated = mt.onScanTerminated
+	mt.openFile.OnScanTerminated = mt.onScanTerminated
+}
+
+// setupLayout configure la disposition des éléments dans la fenêtre
+func (mt *MediaTools) setupLayout() {
+	topBar := container.NewHBox(
+		mt.openFolder,
+		mt.openFile,
+		mt.cleanButton,
+		mt.history,
 	)
 
-	openFile := components.NewOpenFile(&mediaTools.window, mediaTools.onNewFileDetected)
+	mt.burgerMenu = components.NewBurgerMenu(
+		topBar, // top
+		nil,    // bottom
+		nil,    // left
+		nil,    // right
+		mt.listView,
+		mt.window,
+		mt.onBurgerMenuRefresh,
+	)
 
-	openFolder.OnScanTerminated = func() {
-		mediaTools.listView.Refresh()
-	}
-
-	openFile.OnScanTerminated = func() {
-		mediaTools.listView.Refresh()
-	}
-
-	burgerMenu := components.NewBurgerMenu(
-		container.NewHBox(
-			openFolder,
-			openFile,
-			widget.NewButtonWithIcon("Clean", theme.DeleteIcon(), func() {
-				mediaTools.listView.Clear()
-			}),
-			history,
-		),
-		nil, nil, nil, mediaTools.listView, mediaTools.window, func() {
-			mediaTools.listView.Refresh()
-		})
-
-	mediaTools.window.SetContent(container.NewBorder(
-		burgerMenu, nil, nil, nil,
+	mt.window.SetContent(container.NewBorder(
+		mt.burgerMenu,
+		nil,
+		nil,
+		nil,
 		nil,
 	))
-
-	return mediaTools
 }
 
-func (mt *MediaTools) Run() {
-	mt.window.ShowAndRun()
+// Callbacks
+
+func (mt *MediaTools) onHistoryFolderSelected(path string) {
+	fmt.Printf("History folder selected: %s\n", path)
+	// TODO: Implémenter le chargement du dossier historique
+}
+
+func (mt *MediaTools) onFolderOpened(path string) {
+	mt.history.AddFolder(path)
+	mt.listView.Refresh()
+}
+
+func (mt *MediaTools) onCleanButtonClicked() {
+	mt.listView.Clear()
+}
+
+func (mt *MediaTools) onBurgerMenuRefresh() {
+	mt.listView.Refresh()
+}
+
+func (mt *MediaTools) onScanTerminated() {
+	mt.scanState.Lock()
+	mt.scanState.isScanning = false
+	if mt.scanState.cancel != nil {
+		mt.scanState.cancel()
+		mt.scanState.cancel = nil
+	}
+	mt.scanState.Unlock()
+
+	mt.listView.Refresh()
 }
 
 func (mt *MediaTools) onNewFileDetected(path string) {
-	mediaInfo, err := getMediaInfo(path)
+	mediaInfo, err := mt.getMediaInfo(path)
 	if err != nil {
 		fmt.Printf("Error while getting media info: %s\n", err)
 		return
 	}
 
 	mt.listView.AddItem(mediaInfo)
-
+	mt.listView.Refresh()
 }
 
-func getMediaInfo(path string) (*medias.FfprobeResult, error) {
+// getMediaInfo récupère les informations médias d'un fichier
+func (mt *MediaTools) getMediaInfo(path string) (*medias.FfprobeResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	mt.scanState.Lock()
+	mt.scanState.isScanning = true
+	mt.scanState.cancel = cancel
+	mt.scanState.Unlock()
+
+	defer func() {
+		mt.scanState.Lock()
+		if mt.scanState.cancel != nil {
+			mt.scanState.isScanning = false
+			mt.scanState.cancel = nil
+		}
+		mt.scanState.Unlock()
+		cancel()
+	}()
+
 	ffprobe := medias.NewFfprobe(path,
 		medias.FFPROBE_LOGLEVEL_FATAL,
 		medias.PRINT_FORMAT_JSON,
@@ -104,9 +171,19 @@ func getMediaInfo(path string) (*medias.FfprobeResult, error) {
 		medias.EXPERIMENTAL,
 	)
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelFn()
-
 	return ffprobe.Probe(ctx)
+}
 
+// Run démarre l'application
+func (mt *MediaTools) Run() {
+	mt.window.ShowAndRun()
+}
+
+// Stop arrête proprement l'application
+func (mt *MediaTools) Stop() {
+	mt.scanState.Lock()
+	if mt.scanState.cancel != nil {
+		mt.scanState.cancel()
+	}
+	mt.scanState.Unlock()
 }

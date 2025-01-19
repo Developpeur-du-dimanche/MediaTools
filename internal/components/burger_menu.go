@@ -11,7 +11,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// BurgerMenu est un widget personnalisé qui implémente un menu burger
 type BurgerMenu struct {
 	widget.BaseWidget
 	top       fyne.CanvasObject
@@ -26,7 +25,6 @@ type BurgerMenu struct {
 	renderer  *burgerMenuRenderer
 }
 
-// NewBurgerMenu crée une nouvelle instance du menu burger
 func NewBurgerMenu(top fyne.CanvasObject, bottom fyne.CanvasObject,
 	left fyne.CanvasObject, right fyne.CanvasObject, content fyne.CanvasObject, w fyne.Window, onRefresh func()) *BurgerMenu {
 	menu := &BurgerMenu{
@@ -43,9 +41,27 @@ func NewBurgerMenu(top fyne.CanvasObject, bottom fyne.CanvasObject,
 	return menu
 }
 
-// CreateRenderer implémente l'interface Widget
+// Refresh surcharge la méthode Refresh de BaseWidget pour propager le rafraîchissement
+func (b *BurgerMenu) Refresh() {
+	b.BaseWidget.Refresh()
+	if b.expanded {
+		b.refreshContent()
+	}
+}
+
+func (b *BurgerMenu) refreshContent() {
+	if b.content != nil {
+		if widget, ok := b.content.(fyne.Widget); ok {
+			widget.Refresh()
+		}
+	}
+	b.menuPanel.Refresh()
+	if b.OnRefresh != nil {
+		b.OnRefresh()
+	}
+}
+
 func (b *BurgerMenu) CreateRenderer() fyne.WidgetRenderer {
-	// Créer les trois lignes du burger
 	line1 := canvas.NewLine(theme.Color(theme.ColorNameForeground))
 	line2 := canvas.NewLine(theme.Color(theme.ColorNameForeground))
 	line3 := canvas.NewLine(theme.Color(theme.ColorNameForeground))
@@ -61,7 +77,6 @@ func (b *BurgerMenu) CreateRenderer() fyne.WidgetRenderer {
 
 	b.content.Resize(fyne.NewSize(b.window.Canvas().Size().Width-150, contentSize))
 
-	// Container pour le menu déroulant
 	b.menuPanel = container.NewBorder(
 		b.top,
 		b.bottom,
@@ -71,7 +86,6 @@ func (b *BurgerMenu) CreateRenderer() fyne.WidgetRenderer {
 	)
 	b.menuPanel.Hide()
 
-	// Set background color of the menu panel
 	background := canvas.NewRectangle(color.Color(color.RGBA{R: 0, G: 0, B: 0, A: 0}))
 
 	renderer := &burgerMenuRenderer{
@@ -82,34 +96,35 @@ func (b *BurgerMenu) CreateRenderer() fyne.WidgetRenderer {
 	}
 
 	b.renderer = renderer
-
 	return renderer
 }
 
-// Tapped gère les clics sur le menu
 func (b *BurgerMenu) Tapped(_ *fyne.PointEvent) {
 	b.expanded = !b.expanded
 	if b.expanded {
 		b.menuPanel.Show()
+		// Force un rafraîchissement complet à l'ouverture
+		b.refreshContent()
 	} else {
 		b.menuPanel.Hide()
 	}
 	b.Refresh()
 }
 
-// MouseIn gère l'entrée de la souris
 func (b *BurgerMenu) MouseIn(_ *desktop.MouseEvent) {
-	b.renderer.Refresh()
+	if b.renderer != nil {
+		b.renderer.Refresh()
+	}
 	b.Refresh()
 }
 
-// MouseOut gère la sortie de la souris
 func (b *BurgerMenu) MouseOut() {
-	b.renderer.Refresh()
+	if b.renderer != nil {
+		b.renderer.Refresh()
+	}
 	b.Refresh()
 }
 
-// burgerMenuRenderer implémente le renderer du widget
 type burgerMenuRenderer struct {
 	menu      *BurgerMenu
 	lines     []*canvas.Line
@@ -117,15 +132,11 @@ type burgerMenuRenderer struct {
 	window    fyne.Window
 }
 
-// Layout gère le positionnement des éléments
 func (r *burgerMenuRenderer) Layout(size fyne.Size) {
-	// Dimensions des lignes du burger
-
 	lineWidth := float32(25)
 	lineHeight := float32(2)
 	spacing := float32(6)
 
-	// Positionner les lignes
 	y := size.Height/2 - (lineHeight*3+spacing*2)/2
 	for _, line := range r.lines {
 		line.Position1 = fyne.NewPos(0, y)
@@ -133,28 +144,35 @@ func (r *burgerMenuRenderer) Layout(size fyne.Size) {
 		y += spacing + lineHeight
 	}
 
-	// Positionner le panel du menu
 	if r.menu.expanded {
 		r.menuPanel.Resize(fyne.NewSize(r.menu.window.Canvas().Size().Width-200, 300))
 		r.menuPanel.Move(fyne.NewPos(0, size.Height))
+
+		// Force le rafraîchissement du contenu lors du redimensionnement
+		if widget, ok := r.menu.content.(fyne.Widget); ok {
+			widget.Refresh()
+		}
 	}
 }
 
-// MinSize retourne la taille minimale du widget
 func (r *burgerMenuRenderer) MinSize() fyne.Size {
 	return fyne.NewSize(30, 30)
 }
 
-// Refresh rafraîchit le rendu du widget
 func (r *burgerMenuRenderer) Refresh() {
 	for _, line := range r.lines {
 		line.StrokeColor = theme.Color(theme.ColorNameForeground)
 		line.Refresh()
 	}
 
+	// Rafraîchir également le contenu si le menu est ouvert
+	if r.menu.expanded {
+		if widget, ok := r.menu.content.(fyne.Widget); ok {
+			widget.Refresh()
+		}
+	}
 }
 
-// Objects retourne tous les objets rendus
 func (r *burgerMenuRenderer) Objects() []fyne.CanvasObject {
 	objects := make([]fyne.CanvasObject, 0)
 	for _, line := range r.lines {
@@ -164,5 +182,4 @@ func (r *burgerMenuRenderer) Objects() []fyne.CanvasObject {
 	return objects
 }
 
-// Destroy nettoie les ressources
 func (r *burgerMenuRenderer) Destroy() {}
