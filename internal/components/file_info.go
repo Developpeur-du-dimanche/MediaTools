@@ -1,6 +1,8 @@
 package components
 
 import (
+	"strconv"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
@@ -9,30 +11,91 @@ import (
 
 type FileInfoComponent struct {
 	widget.BaseWidget
-	file medias.FfprobeResult
+	file    medias.FfprobeResult
+	appTabs []container.AppTabs
+	window  fyne.Window
 }
 
-func NewFileInfoComponent(file medias.FfprobeResult) *FileInfoComponent {
+func NewFileInfoComponent(file medias.FfprobeResult, window fyne.Window) *FileInfoComponent {
 	fic := &FileInfoComponent{
-		file: file,
+		file:    file,
+		appTabs: []container.AppTabs{},
+		window:  window,
 	}
 	fic.ExtendBaseWidget(fic)
 	return fic
 }
 
 func (fic *FileInfoComponent) CreateRenderer() fyne.WidgetRenderer {
-	size := fyne.CurrentApp().Driver().AllWindows()[0].Canvas().Size()
 
 	b := container.NewBorder(
 		container.NewVBox(
 			widget.NewLabel("Folder: "+fic.file.Format.Filename),
 			widget.NewLabel("Duration: "+fic.file.Format.DurationSeconds.String()),
+
+			container.NewAppTabs(
+				container.NewTabItem("Video", fic.createVideoTabs()),
+				container.NewTabItem("Audio", fic.createAudioTabs()),
+				container.NewTabItem("Subtitle", fic.createSubtitleTabs()),
+			),
 		),
 		nil,
 		nil,
 		nil,
 	)
-	b.Resize(fyne.NewSize(size.Width-150, size.Height-150))
+
+	b.Refresh()
+	b.Resize(fyne.NewSize(fic.window.Canvas().Size().Width-150, fic.window.Canvas().Size().Height-150))
 
 	return widget.NewSimpleRenderer(b)
+}
+
+func (fic *FileInfoComponent) createVideoTabs() *container.AppTabs {
+	videoAppTabs := container.NewAppTabs()
+
+	for i, stream := range fic.file.Videos {
+		videoAppTab := container.NewTabItem("Video "+strconv.Itoa(i), container.NewVBox(
+			widget.NewLabel("Codec: "+stream.CodecName),
+			widget.NewLabel("Resolution: "+strconv.Itoa(stream.Width)+"x"+strconv.Itoa(stream.Height)),
+		))
+
+		videoAppTabs.Append(videoAppTab)
+
+	}
+
+	return videoAppTabs
+
+}
+
+func (fic *FileInfoComponent) createAudioTabs() *container.AppTabs {
+	audioAppTabs := container.NewAppTabs()
+
+	for i, stream := range fic.file.Audios {
+		audioAppTab := container.NewTabItem("Audio "+strconv.Itoa(i), container.NewVBox(
+			widget.NewLabel("Codec: "+stream.CodecName),
+			widget.NewLabel("Channels: "+strconv.Itoa(stream.Channels)),
+		))
+
+		audioAppTabs.Append(audioAppTab)
+
+	}
+
+	return audioAppTabs
+
+}
+
+func (fic *FileInfoComponent) createSubtitleTabs() *container.AppTabs {
+	subtitleAppTabs := container.NewAppTabs()
+
+	for i, stream := range fic.file.Subtitles {
+		subtitleAppTab := container.NewTabItem("Subtitle "+strconv.Itoa(i), container.NewVBox(
+			widget.NewLabel("Codec: "+stream.CodecName),
+		))
+
+		subtitleAppTabs.Append(subtitleAppTab)
+
+	}
+
+	return subtitleAppTabs
+
 }

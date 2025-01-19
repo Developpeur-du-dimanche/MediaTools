@@ -14,56 +14,68 @@ import (
 type ListView struct {
 	widget.BaseWidget
 
-	list  *widget.List
-	mutex *sync.Mutex
+	list   *widget.List
+	mutex  *sync.Mutex
+	window fyne.Window
 
 	items     []*medias.FfprobeResult
 	OnUpdate  chan bool
 	OnRefresh func()
 }
 
-func NewListView(onRefresh func()) *ListView {
+func NewListView(onRefresh func(), window fyne.Window) *ListView {
 	mutex := &sync.Mutex{}
 	lv := &ListView{
 		OnUpdate:  make(chan bool),
 		items:     []*medias.FfprobeResult{},
 		mutex:     mutex,
 		OnRefresh: onRefresh,
-	}
-	lv.list = widget.NewList(
-		func() int {
-			return len(lv.items)
-		},
-		func() fyne.CanvasObject {
-			return container.NewHBox(
-				widget.NewButtonWithIcon("", theme.DeleteIcon(), nil),
-				widget.NewButtonWithIcon("", theme.InfoIcon(), nil),
-				widget.NewLabel(""),
-			)
-		},
-		func(i widget.ListItemID, o fyne.CanvasObject) {
-			root := o.(*fyne.Container)
-			item := lv.items[i]
-			root.Objects[0].(*widget.Button).OnTapped = func() {
-				lv.RemoveItemAt(int(i))
-				lv.Refresh()
-			}
-
-			root.Objects[1].(*widget.Button).OnTapped = func() {
-				fic := NewFileInfoComponent(*item)
-				dialog := dialog.NewCustom("Media Info", "Close", fic, fyne.CurrentApp().Driver().AllWindows()[0])
-				dialog.Show()
-			}
-
-			root.Objects[2].(*widget.Label).SetText(item.Format.Filename)
-		},
-	)
-
-	lv.list.OnSelected = func(id widget.ListItemID) {
-		lv.list.Unselect(id)
+		list:      widget.NewList(nil, nil, nil),
+		window:    window,
 	}
 
 	return lv
+}
+
+func (lv *ListView) CreateRenderer() fyne.WidgetRenderer {
+	lv.list.Length = lv.length
+	lv.list.CreateItem = lv.CreateItem
+	lv.list.UpdateItem = lv.updateItem
+	lv.list.OnSelected = lv.onSelected
+	return widget.NewSimpleRenderer(lv.list)
+}
+
+func (lv *ListView) CreateItem() fyne.CanvasObject {
+	return container.NewHBox(
+		widget.NewButtonWithIcon("", theme.DeleteIcon(), nil),
+		widget.NewButtonWithIcon("", theme.InfoIcon(), nil),
+		widget.NewLabel(""),
+	)
+}
+
+func (lv *ListView) onSelected(id int) {
+	lv.list.Unselect(id)
+}
+
+func (lv *ListView) length() int {
+	return len(lv.items)
+}
+
+func (lv *ListView) updateItem(i widget.ListItemID, o fyne.CanvasObject) {
+	root := o.(*fyne.Container)
+	item := lv.items[i]
+	root.Objects[0].(*widget.Button).OnTapped = func() {
+		lv.RemoveItemAt(int(i))
+		lv.Refresh()
+	}
+
+	root.Objects[1].(*widget.Button).OnTapped = func() {
+		fic := NewFileInfoComponent(*item, fyne.CurrentApp().Driver().AllWindows()[0])
+		dialog := dialog.NewCustom("Media Info", "Close", fic, fyne.CurrentApp().Driver().AllWindows()[0])
+		dialog.Show()
+	}
+
+	root.Objects[2].(*widget.Label).SetText(item.Format.Filename)
 }
 
 func (lv *ListView) RemoveItemAt(index int) {
@@ -83,13 +95,6 @@ func (lv *ListView) AddItem(item *medias.FfprobeResult) {
 	lv.mutex.Unlock()
 }
 
-func (lv *ListView) AddItems(items []*medias.FfprobeResult) {
-	lv.mutex.Lock()
-	lv.items = append(lv.items, items...)
-	lv.list.Refresh()
-	lv.mutex.Unlock()
-}
-
 func (lv *ListView) Clear() {
 	lv.mutex.Lock()
 	lv.items = make([]*medias.FfprobeResult, 0)
@@ -99,8 +104,4 @@ func (lv *ListView) Clear() {
 
 func (lv *ListView) GetItems() []*medias.FfprobeResult {
 	return lv.items
-}
-
-func (lv *ListView) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(lv.list)
 }

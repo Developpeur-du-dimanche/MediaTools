@@ -168,8 +168,6 @@ type format struct {
 	Filename         string      `json:"filename"`
 	NBStreams        int         `json:"nb_streams"`
 	NBPrograms       int         `json:"nb_programs"`
-	formatName       string      `json:"format_name"`
-	formatLongName   string      `json:"format_long_name"`
 	StartTimeSeconds float64     `json:"start_time,string"`
 	DurationSeconds  float64     `json:"duration,string"`
 	Size             string      `json:"size"`

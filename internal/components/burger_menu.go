@@ -75,7 +75,7 @@ func (b *BurgerMenu) CreateRenderer() fyne.WidgetRenderer {
 		contentSize -= b.bottom.Size().Height
 	}
 
-	b.content.Resize(fyne.NewSize(b.window.Canvas().Size().Width-150, contentSize))
+	b.content.Resize(fyne.NewSize(b.window.Canvas().Size().Width*0.90, contentSize))
 
 	b.menuPanel = container.NewBorder(
 		b.top,
@@ -86,7 +86,8 @@ func (b *BurgerMenu) CreateRenderer() fyne.WidgetRenderer {
 	)
 	b.menuPanel.Hide()
 
-	background := canvas.NewRectangle(color.Color(color.RGBA{R: 0, G: 0, B: 0, A: 0}))
+	// background := White grey color
+	background := canvas.NewRectangle(color.RGBA{R: 0xff, G: 0xff, B: 0xff, A: 0x80})
 
 	renderer := &burgerMenuRenderer{
 		menu:      b,
@@ -105,6 +106,7 @@ func (b *BurgerMenu) Tapped(_ *fyne.PointEvent) {
 		b.menuPanel.Show()
 		// Force un rafraîchissement complet à l'ouverture
 		b.refreshContent()
+		b.renderer.Refresh()
 	} else {
 		b.menuPanel.Hide()
 	}
@@ -145,7 +147,7 @@ func (r *burgerMenuRenderer) Layout(size fyne.Size) {
 	}
 
 	if r.menu.expanded {
-		r.menuPanel.Resize(fyne.NewSize(r.menu.window.Canvas().Size().Width-200, 300))
+		r.menuPanel.Resize(fyne.NewSize(r.menu.window.Canvas().Size().Width*0.90, r.menu.window.Canvas().Size().Width-size.Height))
 		r.menuPanel.Move(fyne.NewPos(0, size.Height))
 
 		// Force le rafraîchissement du contenu lors du redimensionnement

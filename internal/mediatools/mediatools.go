@@ -61,7 +61,7 @@ func (mt *MediaTools) initWindow() {
 
 // initComponents initialise tous les composants de l'interface
 func (mt *MediaTools) initComponents() {
-	mt.listView = components.NewListView(nil)
+	mt.listView = components.NewListView(nil, mt.window)
 
 	mt.history = components.NewLastScanSelector(mt.onHistoryFolderSelected)
 	mt.openFolder = components.NewOpenFolder(&mt.window, mt.onFolderOpened, mt.onNewFileDetected)
@@ -130,7 +130,6 @@ func (mt *MediaTools) onScanTerminated() {
 	}
 	mt.scanState.Unlock()
 
-	mt.listView.Refresh()
 }
 
 func (mt *MediaTools) onNewFileDetected(path string) {
