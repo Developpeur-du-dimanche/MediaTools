@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Developpeur-du-dimanche/MediaTools/pkg/logger"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/proc"
 )
 
@@ -319,7 +320,7 @@ type Subtitle struct {
 	Language    string `json:"language"`
 }
 
-type FfrpobeData struct {
+type FfprobeData struct {
 	Filename        string        `json:"filename"`
 	DurationSeconds time.Duration `json:"duration,string"`
 	Size            string        `json:"size"`
@@ -327,7 +328,7 @@ type FfrpobeData struct {
 }
 
 type FfprobeResult struct {
-	Format    FfrpobeData `json:"format"`
+	Format    FfprobeData `json:"format"`
 	Videos    []Video     `json:"video"`
 	Audios    []Audio     `json:"audio"`
 	Subtitles []Subtitle  `json:"subtitle"`
@@ -399,7 +400,8 @@ func (f *Ffprobe) Probe(ctx context.Context) (*FfprobeResult, error) {
 		binary, err := exec.LookPath("ffprobe")
 
 		if err != nil {
-			return nil, err
+			logger.Errorf("ffprobe binary not found in PATH: %v", err)
+			return nil, fmt.Errorf("ffprobe not found: %w", err)
 		}
 
 		f.binary = binary
@@ -411,11 +413,12 @@ func (f *Ffprobe) Probe(ctx context.Context) (*FfprobeResult, error) {
 	data, err := runCmd(cmd)
 
 	if err != nil {
+		logger.Errorf("ffprobe command failed for %s: %v", f.path, err)
 		return nil, err
 	}
 
 	result := &FfprobeResult{
-		Format: FfrpobeData{
+		Format: FfprobeData{
 			Filename:        data.Format.Filename,
 			DurationSeconds: data.Format.Duration(),
 			Size:            data.Format.Size,

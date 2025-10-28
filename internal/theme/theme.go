@@ -1,5 +1,5 @@
-//go:generate fyne bundle -o bundled.go ../../assets
-package main
+//go:generate fyne bundle -o bundled.go -package theme ../../assets
+package theme
 
 import (
 	"image/color"
@@ -12,7 +12,7 @@ type mediaToolsTheme struct {
 	fyne.Theme
 }
 
-func newMediaToolsTheme() fyne.Theme {
+func NewMediaToolsTheme() fyne.Theme {
 	return &mediaToolsTheme{Theme: theme.DefaultTheme()}
 }
 

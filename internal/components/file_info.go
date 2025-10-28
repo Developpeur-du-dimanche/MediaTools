@@ -28,16 +28,25 @@ func NewFileInfoComponent(file medias.FfprobeResult, window fyne.Window) *FileIn
 
 func (fic *FileInfoComponent) CreateRenderer() fyne.WidgetRenderer {
 
+	tabs := container.NewAppTabs()
+
+	if len(fic.file.Videos) != 0 {
+		tabs.Append(container.NewTabItem("Video", fic.createVideoTabs()))
+	}
+
+	if len(fic.file.Audios) != 0 {
+		tabs.Append(container.NewTabItem("Audio", fic.createAudioTabs()))
+	}
+
+	if len(fic.file.Subtitles) != 0 {
+		tabs.Append(container.NewTabItem("Subtitle", fic.createSubtitleTabs()))
+	}
+
 	b := container.NewBorder(
 		container.NewVBox(
 			widget.NewLabel("Folder: "+fic.file.Format.Filename),
 			widget.NewLabel("Duration: "+fic.file.Format.DurationSeconds.String()),
-
-			container.NewAppTabs(
-				container.NewTabItem("Video", fic.createVideoTabs()),
-				container.NewTabItem("Audio", fic.createAudioTabs()),
-				container.NewTabItem("Subtitle", fic.createSubtitleTabs()),
-			),
+			tabs,
 		),
 		nil,
 		nil,

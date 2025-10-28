@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/mediatools"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/theme"
 )
 
 func main() {
@@ -14,7 +15,7 @@ func main() {
 		Version: "0.1",
 	})
 
-	a.Settings().SetTheme(newMediaToolsTheme())
+	a.Settings().SetTheme(theme.NewMediaToolsTheme())
 
 	mt := mediatools.NewMediaTools(a)
 	mt.Run()
