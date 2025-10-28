@@ -12,18 +12,7 @@ before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod tidy
-    # you may remove this if you don't need go generate
-    - go generate ./...
-    - go get fyne.io/fyne/v2/app@v2.5.3
-    - go get fyne.io/fyne/v2@latest
-    - go get gopkg.in/vansante/go-ffprobe.v2
-    - go get github.com/go-text/render
-    - go get github.com/kbinani/screenshot
-    - go get github.com/fsnotify/fsnotify
-    - go get github.com/yuin/goldmark
-    - go get github.com/fredbi/uri
-    - go get fyne.io/systray
-    - go get github.com/fyne-io/image
+    - go mod download
 
 builds:
   - id: "mediatools2"
