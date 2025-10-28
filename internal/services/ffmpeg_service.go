@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/logger"
@@ -276,6 +277,186 @@ func (fs *FFmpegService) BatchRemoveStreams(ctx context.Context, files []*medias
 
 		if progress != nil {
 			progress(float64(i+1)/float64(len(files)), fmt.Sprintf("Processed %d/%d files", i+1, len(files)))
+		}
+	}
+
+	return results, nil
+}
+
+// VideoCheckResult contains the result of a video integrity check
+type VideoCheckResult struct {
+	FilePath  string
+	IsValid   bool
+	Error     string
+	Duration  float64
+	HasErrors bool
+}
+
+// CheckVideoIntegrity checks if a video file is corrupted
+func (fs *FFmpegService) CheckVideoIntegrity(ctx context.Context, inputFile string, progress ProgressCallback) (*VideoCheckResult, error) {
+	logger.Infof("Checking video integrity for %s", inputFile)
+
+	result := &VideoCheckResult{
+		FilePath: inputFile,
+		IsValid:  true,
+	}
+
+	// First, get video duration using ffprobe for progress calculation
+	duration, err := fs.getVideoDuration(inputFile)
+	if err != nil {
+		logger.Warnf("Could not get duration for %s: %v", inputFile, err)
+		duration = 0
+	}
+	result.Duration = duration
+
+	// Use ffmpeg to decode the entire video and check for errors with progress
+	args := []string{
+		"-progress", "pipe:2", // Send progress to stderr
+		"-i", inputFile,
+		"-f", "null", // No output file
+		"-",
+	}
+
+	cmd := exec.CommandContext(ctx, fs.ffmpegPath, args...)
+
+	// Capture stderr for progress and errors
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stderr pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start ffmpeg: %w", err)
+	}
+
+	// Parse progress from stderr
+	errorOutput := ""
+	buffer := make([]byte, 4096)
+	for {
+		n, err := stderr.Read(buffer)
+		if n > 0 {
+			output := string(buffer[:n])
+			errorOutput += output
+
+			// Parse progress information
+			if progress != nil && duration > 0 {
+				// Look for "out_time_ms=" to get current position
+				if strings.Contains(output, "out_time_ms=") {
+					lines := strings.Split(output, "\n")
+					for _, line := range lines {
+						if timeStr, found := strings.CutPrefix(line, "out_time_ms="); found {
+							timeMicros, parseErr := strconv.ParseInt(strings.TrimSpace(timeStr), 10, 64)
+							if parseErr == nil {
+								currentTime := float64(timeMicros) / 1000000.0 // Convert to seconds
+								progressPercent := currentTime / duration
+								if progressPercent > 1.0 {
+									progressPercent = 1.0
+								}
+								progress(progressPercent, fmt.Sprintf("Checking... %.1f%%", progressPercent*100))
+							}
+						}
+					}
+				}
+			}
+		}
+		if err != nil {
+			break
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		// Check if there were actual errors in the output
+		if strings.Contains(errorOutput, "error") || strings.Contains(errorOutput, "Error") {
+			result.IsValid = false
+			result.HasErrors = true
+			result.Error = errorOutput
+		}
+	}
+
+	// Check for errors in output
+	if strings.Contains(errorOutput, "error") || strings.Contains(errorOutput, "Error") {
+		result.IsValid = false
+		result.HasErrors = true
+		result.Error = errorOutput
+	}
+
+	if progress != nil {
+		if result.IsValid {
+			progress(1.0, "Video is valid")
+		} else {
+			progress(1.0, "Video has errors")
+		}
+	}
+
+	logger.Infof("Video check complete for %s: valid=%v", inputFile, result.IsValid)
+	return result, nil
+}
+
+// getVideoDuration gets the duration of a video file using ffprobe
+func (fs *FFmpegService) getVideoDuration(inputFile string) (float64, error) {
+	args := []string{
+		"-v", "error",
+		"-show_entries", "format=duration",
+		"-of", "default=noprint_wrappers=1:nokey=1",
+		inputFile,
+	}
+
+	cmd := exec.Command("ffprobe", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, err
+	}
+
+	durationStr := strings.TrimSpace(string(output))
+	duration, err := strconv.ParseFloat(durationStr, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return duration, nil
+}
+
+// BatchCheckVideos checks multiple video files for corruption
+func (fs *FFmpegService) BatchCheckVideos(ctx context.Context, files []*medias.FfprobeResult, progress ProgressCallback) ([]*VideoCheckResult, error) {
+	results := make([]*VideoCheckResult, 0, len(files))
+
+	for i, file := range files {
+		select {
+		case <-ctx.Done():
+			return results, ctx.Err()
+		default:
+		}
+
+		inputPath := file.Format.Filename
+
+		// Create a progress callback for individual file
+		fileProgress := func(fileProgressPercent float64, message string) {
+			if progress != nil {
+				// Calculate overall progress: (completed files + current file progress) / total files
+				overallProgress := (float64(i) + fileProgressPercent) / float64(len(files))
+				progress(overallProgress, fmt.Sprintf("[%d/%d] %s: %s", i+1, len(files), filepath.Base(inputPath), message))
+			}
+		}
+
+		result, err := fs.CheckVideoIntegrity(ctx, inputPath, fileProgress)
+		if err != nil {
+			logger.Warnf("Failed to check %s: %v", inputPath, err)
+			result = &VideoCheckResult{
+				FilePath:  inputPath,
+				IsValid:   false,
+				HasErrors: true,
+				Error:     err.Error(),
+			}
+		}
+
+		results = append(results, result)
+
+		if progress != nil {
+			status := "✓ OK"
+			if !result.IsValid {
+				status = "✗ CORRUPTED"
+			}
+			progress(float64(i+1)/float64(len(files)), fmt.Sprintf("Checked %d/%d files - %s: %s", i+1, len(files), filepath.Base(inputPath), status))
 		}
 	}
 

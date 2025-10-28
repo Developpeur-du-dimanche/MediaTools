@@ -45,11 +45,13 @@ type MediaTools struct {
 	filterTab        *container.TabItem
 	mergeTab         *container.TabItem
 	removeStreamsTab *container.TabItem
+	checkVideosTab   *container.TabItem
 
 	// Components for tabs
 	filterResultsList      *widget.List
 	mergeComponent         *components.MergeVideosComponent
 	removeStreamsComponent *components.RemoveStreamsComponent
+	checkVideosComponent   *components.CheckVideosComponent
 
 	// Data
 	allMediaItems      []*medias.FfprobeResult
@@ -106,6 +108,7 @@ func (mt *MediaTools) initComponents() {
 	mt.filterResultsList = nil
 	mt.mergeComponent = nil
 	mt.removeStreamsComponent = nil
+	mt.checkVideosComponent = nil
 }
 
 // setupLayout configure la disposition des éléments dans la fenêtre
@@ -140,12 +143,14 @@ func (mt *MediaTools) setupLayout() {
 	mt.filterTab = mt.createFilterTab()
 	mt.mergeTab = mt.createMergeTab()
 	mt.removeStreamsTab = mt.createRemoveStreamsTab()
+	mt.checkVideosTab = mt.createCheckVideosTab()
 
 	// Onglets d'opérations en dessous
 	mt.operationTabs = container.NewAppTabs(
 		mt.filterTab,
 		mt.mergeTab,
 		mt.removeStreamsTab,
+		mt.checkVideosTab,
 	)
 
 	backgroud := canvas.NewRectangle(color.RGBA{
@@ -294,6 +299,41 @@ func (mt *MediaTools) createRemoveStreamsTab() *container.TabItem {
 	)
 
 	return container.NewTabItem("Remove/Keep Streams", content)
+}
+
+// createCheckVideosTab crée l'onglet pour vérifier l'intégrité des vidéos
+func (mt *MediaTools) createCheckVideosTab() *container.TabItem {
+	placeholder := container.NewCenter(
+		widget.NewLabel("Select at least 1 file above, then click 'Start Checking' to verify video integrity."),
+	)
+
+	startButton := widget.NewButtonWithIcon("Start Checking", theme.MediaPlayIcon(), func() {
+		selected := mt.listView.GetSelectedItems()
+		if len(selected) == 0 {
+			placeholder := container.NewCenter(
+				widget.NewLabel("Please select at least 1 file above."),
+			)
+			mt.checkVideosTab.Content = placeholder
+			mt.operationTabs.Refresh()
+			return
+		}
+		mt.checkVideosComponent = components.NewCheckVideosComponent(mt.window, selected, mt.ffmpegService)
+		mt.checkVideosTab.Content = mt.checkVideosComponent
+		mt.operationTabs.Refresh()
+	})
+	startButton.Importance = widget.HighImportance
+
+	content := container.NewBorder(
+		nil,
+		container.NewCenter(
+			container.NewHBox(startButton),
+		),
+		nil,
+		nil,
+		placeholder,
+	)
+
+	return container.NewTabItem("Check Videos", content)
 }
 
 func (mt *MediaTools) onHistoryFolderSelected(path string) {
