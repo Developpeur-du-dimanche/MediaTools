@@ -1,9 +1,0 @@
-{
-    "name": "Subtitle Language",
-    "conditions": [
-        "equals",
-        "not equals"
-    ],
-    "jsonPath": "$.Subtitle[*].tags.Language",
-    "type": "int"
-}
