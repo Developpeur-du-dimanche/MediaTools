@@ -2,9 +2,10 @@ package components
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Developpeur-du-dimanche/MediaTools/pkg/logger"
+	"github.com/ncruces/zenity"
 )
 
 type OpenFile struct {
@@ -31,26 +32,30 @@ func (of *OpenFile) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (of *OpenFile) openFileDialog() {
-	dialog := dialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
+	// Use native Windows File Explorer dialog
+	filePath, err := zenity.SelectFile(
+		zenity.Title("Select Media File"),
+		zenity.FileFilters{
+			{Name: "Video Files", Patterns: []string{"*.mp4", "*.mkv", "*.avi", "*.mov", "*.wmv", "*.flv", "*.webm", "*.m4v"}},
+			{Name: "Audio Files", Patterns: []string{"*.mp3", "*.flac", "*.wav", "*.aac", "*.ogg", "*.m4a", "*.wma"}},
+			{Name: "All Files", Patterns: []string{"*.*"}},
+		},
+	)
+	if err != nil {
+		// User cancelled or error occurred
+		logger.Debugf("File selection cancelled or error: %v", err)
+		return
+	}
 
-		if reader == nil {
-			return
-		}
+	if filePath == "" {
+		return
+	}
 
-		if err != nil {
-			dialog.ShowError(err, of.window)
-			return
-		}
+	if of.OnFileOpen != nil {
+		of.OnFileOpen(filePath)
+	}
 
-		if of.OnFileOpen != nil {
-			of.OnFileOpen(reader.URI().Path())
-		}
-
-		if of.OnScanTerminated != nil {
-			of.OnScanTerminated()
-		}
-	}, of.window)
-	size := of.window.Canvas().Size()
-	dialog.Resize(fyne.NewSize(size.Width-150, size.Height-150))
-	dialog.Show()
+	if of.OnScanTerminated != nil {
+		of.OnScanTerminated()
+	}
 }

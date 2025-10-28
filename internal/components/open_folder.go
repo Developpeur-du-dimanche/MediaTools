@@ -5,11 +5,12 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
+	fynedialog "fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/services"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/logger"
+	"github.com/ncruces/zenity"
 )
 
 type OpenFolder struct {
@@ -17,7 +18,7 @@ type OpenFolder struct {
 	button *widget.Button
 	window fyne.Window
 
-	progressDialog *dialog.CustomDialog
+	progressDialog *fynedialog.CustomDialog
 	progressBar    *widget.ProgressBar
 	progressLabel  *widget.Label
 
@@ -36,7 +37,7 @@ func NewOpenFolder(parent fyne.Window, onFolderOpened func(path string), onScanP
 		progressLabel:  widget.NewLabel("Preparing scan..."),
 	}
 
-	of.progressDialog = dialog.NewCustomWithoutButtons("Scanning Folder",
+	of.progressDialog = fynedialog.NewCustomWithoutButtons("Scanning Folder",
 		widget.NewCard("", "",
 			container.NewVBox(
 				of.progressLabel,
@@ -56,28 +57,26 @@ func (of *OpenFolder) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (of *OpenFolder) openFolderDialog() {
-	dlg := dialog.NewFolderOpen(func(lu fyne.ListableURI, err error) {
-		if err != nil {
-			dialog.ShowError(err, of.window)
-			return
-		}
+	// Use native Windows File Explorer dialog
+	folderPath, err := zenity.SelectFile(
+		zenity.Title("Select Folder"),
+		zenity.Directory(),
+	)
+	if err != nil {
+		// User cancelled or error occurred
+		logger.Debugf("Folder selection cancelled or error: %v", err)
+		return
+	}
 
-		if lu == nil {
-			return
-		}
+	if folderPath == "" {
+		return
+	}
 
-		folderPath := lu.Path()
+	if of.onFolderOpen != nil {
+		of.onFolderOpen(folderPath)
+	}
 
-		if of.onFolderOpen != nil {
-			of.onFolderOpen(folderPath)
-		}
-
-		of.scanFolderAsync(folderPath)
-	}, of.window)
-
-	size := of.window.Canvas().Size()
-	dlg.Resize(fyne.NewSize(size.Width-150, size.Height-150))
-	dlg.Show()
+	of.scanFolderAsync(folderPath)
 }
 
 func (of *OpenFolder) scanFolderAsync(folderPath string) {
