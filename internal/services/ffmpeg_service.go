@@ -325,15 +325,46 @@ func (fs *FFmpegService) CheckVideoIntegrity(ctx context.Context, inputFile stri
 		return nil, fmt.Errorf("failed to get stderr pipe: %w", err)
 	}
 
+	errorOutput := fs.captureProgress(stderr, duration, progress)
+
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start ffmpeg: %w", err)
 	}
 
+	if err := cmd.Wait(); err != nil {
+		// Check if there were actual errors in the output
+		if strings.Contains(errorOutput, "error") || strings.Contains(errorOutput, "Error") {
+			result.IsValid = false
+			result.HasErrors = true
+			result.Error = errorOutput
+		}
+	}
+
+	// Check for errors in output
+	if strings.Contains(errorOutput, "error") || strings.Contains(errorOutput, "Error") {
+		result.IsValid = false
+		result.HasErrors = true
+		result.Error = errorOutput
+	}
+
+	if progress != nil {
+		if result.IsValid {
+			progress(1.0, "Video is valid")
+		} else {
+			progress(1.0, "Video has errors")
+		}
+	}
+
+	logger.Infof("Video check complete for %s: valid=%v", inputFile, result.IsValid)
+	return result, nil
+}
+
+func (fs *FFmpegService) captureProgress(stderrPipe io.ReadCloser, duration float64, progress ProgressCallback) string {
 	// Parse progress from stderr
 	errorOutput := ""
 	buffer := make([]byte, 4096)
 	for {
-		n, err := stderr.Read(buffer)
+		n, err := stderrPipe.Read(buffer)
 		if n > 0 {
 			output := string(buffer[:n])
 			errorOutput += output

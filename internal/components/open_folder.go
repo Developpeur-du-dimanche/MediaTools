@@ -72,10 +72,6 @@ func (of *OpenFolder) openFolderDialog() {
 		return
 	}
 
-	if of.onFolderOpen != nil {
-		of.onFolderOpen(folderPath)
-	}
-
 	of.scanFolderAsync(folderPath)
 }
 
@@ -85,7 +81,7 @@ func (of *OpenFolder) scanFolderAsync(folderPath string) {
 	of.progressLabel.SetText("Starting scan...")
 	of.progressDialog.Show()
 
-	// Notify parent that scan started
+	// Notify parent that scan started (only once)
 	if of.onFolderOpen != nil {
 		of.onFolderOpen(folderPath)
 	}
