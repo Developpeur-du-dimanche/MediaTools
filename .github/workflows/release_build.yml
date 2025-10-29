@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies for Fyne
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib libgl1-mesa-dev xorg-dev
+          sudo apt-get install -y gcc-multilib libgl1-mesa-dev xorg-dev gcc-mingw-w64-x86-64
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
