@@ -9,6 +9,8 @@ jobs:
   build:
     name: GoReleaser build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Check out code into the Go module directory
