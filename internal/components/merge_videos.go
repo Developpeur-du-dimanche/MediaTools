@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/services"
@@ -23,12 +24,12 @@ type MergeVideosComponent struct {
 	ffmpegService *services.FFmpegService
 	selectedFiles []*medias.FfprobeResult
 
-	filesList     *widget.List
-	mergeButton   *widget.Button
-	outputEntry   *widget.Entry
-	outputRow     *fyne.Container
-	progressBar   *widget.ProgressBar
-	statusLabel   *widget.Label
+	filesList   *widget.List
+	mergeButton *widget.Button
+	outputEntry *widget.Entry
+	outputRow   *fyne.Container
+	progressBar *widget.ProgressBar
+	statusLabel *widget.Label
 
 	onComplete func(outputPath string)
 }
@@ -53,44 +54,30 @@ func (mvc *MergeVideosComponent) initUI() {
 			return len(mvc.selectedFiles)
 		},
 		func() fyne.CanvasObject {
-			return container.NewBorder(
-				nil, nil,
-				container.NewHBox(
-					widget.NewButtonWithIcon("", theme.MoveUpIcon(), nil),
-					widget.NewButtonWithIcon("", theme.MoveDownIcon(), nil),
-				),
-				widget.NewButtonWithIcon("", theme.DeleteIcon(), nil),
-				widget.NewLabel(""),
-			)
+			return NewMergeItem()
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
-			border := obj.(*fyne.Container)
-			leftBox := border.Objects[0].(*fyne.Container)
-			upBtn := leftBox.Objects[0].(*widget.Button)
-			downBtn := leftBox.Objects[1].(*widget.Button)
-			deleteBtn := border.Objects[1].(*widget.Button)
-			label := border.Objects[2].(*widget.Label)
-
+			mi := obj.(*MergeItem)
 			file := mvc.selectedFiles[id]
-			label.SetText(filepath.Base(file.Format.Filename))
+			mi.SetLabel(filepath.Base(file.Format.Filename))
 
-			upBtn.OnTapped = func() {
+			mi.SetUpButtonOnTapped(func() {
 				mvc.moveFileUp(int(id))
-			}
-			downBtn.OnTapped = func() {
+			})
+			mi.SetDownButtonOnTapped(func() {
 				mvc.moveFileDown(int(id))
-			}
-			deleteBtn.OnTapped = func() {
+			})
+			mi.SetRemoveButtonOnTapped(func() {
 				mvc.removeFile(int(id))
-			}
+			})
 
-			upBtn.Disable()
-			downBtn.Disable()
+			mi.DisableUpButton()
+			mi.DisableDownButton()
 			if id > 0 {
-				upBtn.Enable()
+				mi.DisableUpButton()
 			}
 			if id < len(mvc.selectedFiles)-1 {
-				downBtn.Enable()
+				mi.EnableDownButton()
 			}
 		},
 	)
@@ -110,7 +97,7 @@ func (mvc *MergeVideosComponent) initUI() {
 		}, mvc.window)
 	})
 
-	mvc.outputRow = container.NewBorder(nil, nil, nil, browseButton, mvc.outputEntry)
+	mvc.outputRow = container.New(layout.NewFormLayout(), browseButton, mvc.outputEntry)
 
 	// Progress bar
 	mvc.progressBar = widget.NewProgressBar()
@@ -146,11 +133,9 @@ func (mvc *MergeVideosComponent) CreateRenderer() fyne.WidgetRenderer {
 			header,
 			widget.NewSeparator(),
 			instructions,
-			widget.NewLabel(""),
 			widget.NewLabel("Files to merge:"),
 		),
 		container.NewVBox(
-			widget.NewLabel(""),
 			widget.NewLabel("Output file:"),
 			mvc.outputRow,
 			widget.NewLabel(""),
@@ -161,7 +146,7 @@ func (mvc *MergeVideosComponent) CreateRenderer() fyne.WidgetRenderer {
 		),
 		nil,
 		nil,
-		container.NewScroll(mvc.filesList),
+		container.NewStack(container.NewScroll(mvc.filesList)),
 	)
 
 	return widget.NewSimpleRenderer(content)
@@ -242,4 +227,3 @@ func (mvc *MergeVideosComponent) startMerge() {
 		}
 	}()
 }
-

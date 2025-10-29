@@ -233,18 +233,12 @@ func (mt *MediaTools) createFilterTab() *container.TabItem {
 
 // createMergeTab crée l'onglet pour fusionner des vidéos
 func (mt *MediaTools) createMergeTab() *container.TabItem {
-	placeholder := container.NewCenter(
-		widget.NewLabel("Select at least 2 files above, then click 'Start Merge' to begin."),
-	)
+	placeholder := widget.NewLabel("Select at least 2 files above, then click 'Start Merge' to begin.")
 
 	startButton := widget.NewButtonWithIcon("Start Merge", theme.MediaPlayIcon(), func() {
 		selected := mt.listView.GetSelectedItems()
 		if len(selected) < 2 {
-			placeholder := container.NewCenter(
-				widget.NewLabel("Please select at least 2 files above."),
-			)
-			mt.mergeTab.Content = placeholder
-			mt.operationTabs.Refresh()
+			placeholder.SetText("Please select at least 2 files above.")
 			return
 		}
 		mt.mergeComponent = components.NewMergeVideosComponent(mt.window, selected, mt.ffmpegService)
@@ -260,7 +254,7 @@ func (mt *MediaTools) createMergeTab() *container.TabItem {
 		),
 		nil,
 		nil,
-		placeholder,
+		container.NewCenter(placeholder),
 	)
 
 	return container.NewTabItem("Merge Videos", content)
