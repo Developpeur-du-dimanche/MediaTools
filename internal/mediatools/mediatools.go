@@ -99,7 +99,7 @@ func (mt *MediaTools) initComponents() {
 	mt.history = components.NewLastScanSelector(mt.historyService, mt.onHistoryFolderSelected)
 	mt.openFolder = components.NewOpenFolder(mt.window, mt.onFolderOpened, mt.onScanProgress)
 	mt.openFile = components.NewOpenFile(mt.window, mt.onFileOpened)
-	mt.filterBar = components.NewFilterBar(mt.window, mt.onFilterApply, mt.onFilterClear)
+	mt.filterBar = components.NewFilterBar(mt.window, nil, nil)
 	mt.cleanButton = widget.NewButtonWithIcon("Clean", theme.DeleteIcon(), mt.onCleanButtonClicked)
 	mt.selectAllBtn = widget.NewButtonWithIcon("Select All", theme.CheckButtonCheckedIcon(), mt.onSelectAllClicked)
 	mt.unselectAllBtn = widget.NewButtonWithIcon("Unselect All", theme.CheckButtonIcon(), mt.onUnselectAllClicked)
@@ -198,15 +198,23 @@ func (mt *MediaTools) createFilterTab() *container.TabItem {
 			resultsLabel.SetText("No filter applied - Showing all files")
 			mt.filteredMediaItems = mt.allMediaItems
 		} else {
-			mt.onFilterApply(filterStr)
+			// Apply filter without affecting the main list
+			filtered, err := mt.filterService.FilterMediaList(mt.allMediaItems, filterStr)
+			if err != nil {
+				logger.Errorf("Filter error: %v", err)
+				resultsLabel.SetText(fmt.Sprintf("Filter error: %v", err))
+				return
+			}
+			mt.filteredMediaItems = filtered
 			resultsLabel.SetText(fmt.Sprintf("Filter: %s - %d results", filterStr, len(mt.filteredMediaItems)))
+			logger.Infof("Filter applied: %d/%d items match", len(filtered), len(mt.allMediaItems))
 		}
 		mt.filterResultsList.Refresh()
 	})
 	applyButton.Importance = widget.HighImportance
 
 	clearButton := widget.NewButtonWithIcon("Clear Filter", theme.ContentClearIcon(), func() {
-		mt.onFilterClear()
+		mt.filteredMediaItems = mt.allMediaItems
 		resultsLabel.SetText("Filter cleared - Showing all files")
 		mt.filterResultsList.Refresh()
 	})
@@ -356,39 +364,10 @@ func (mt *MediaTools) onCleanButtonClicked() {
 }
 
 func (mt *MediaTools) onScanProgress(progress services.ScanProgress) {
-	// Traiter les fichiers au fur et à mesure du scan
-	if progress.CurrentFile != "" && !progress.IsComplete {
-		mt.processMediaFile(progress.CurrentFile)
-	}
+	// Ne rien faire pendant le scan, le traitement se fera après
+	// Cette fonction est juste pour la mise à jour de l'UI via UpdateProgress
 }
 
-func (mt *MediaTools) onFilterApply(filterStr string) {
-	logger.Infof("Applying filter: %s", filterStr)
-	mt.currentFilter = filterStr
-
-	// Appliquer le filtre
-	filtered, err := mt.filterService.FilterMediaList(mt.allMediaItems, filterStr)
-	if err != nil {
-		logger.Errorf("Filter error: %v", err)
-		// TODO: Afficher une erreur à l'utilisateur
-		return
-	}
-
-	mt.filteredMediaItems = filtered
-
-	// Mettre à jour la liste affichée
-	mt.updateDisplayedItems()
-	logger.Infof("Filter applied: %d/%d items match", len(filtered), len(mt.allMediaItems))
-}
-
-func (mt *MediaTools) onFilterClear() {
-	logger.Info("Clearing filter")
-	mt.currentFilter = ""
-	mt.filteredMediaItems = mt.allMediaItems
-
-	// Mettre à jour la liste affichée
-	mt.updateDisplayedItems()
-}
 
 // scanFolder lance le scan d'un dossier
 func (mt *MediaTools) scanFolder(folderPath string) {
@@ -402,11 +381,25 @@ func (mt *MediaTools) scanFolder(folderPath string) {
 	// Lancer le scan en arrière-plan
 	go func() {
 		defer close(progressChan)
-		_, err := mt.mediaService.ScanFolder(ctx, folderPath, progressChan)
+		mediaFiles, err := mt.mediaService.ScanFolder(ctx, folderPath, progressChan)
 
 		if err != nil && err != context.Canceled {
 			logger.Errorf("Folder scan error: %v", err)
+			return
 		}
+
+		// Traiter tous les fichiers trouvés après le scan
+		logger.Infof("Processing %d media files...", len(mediaFiles))
+		for _, filePath := range mediaFiles {
+			select {
+			case <-ctx.Done():
+				logger.Info("File processing cancelled")
+				return
+			default:
+				mt.processMediaFile(filePath)
+			}
+		}
+		logger.Info("All files processed successfully")
 	}()
 
 	// Traiter les mises à jour de progression
@@ -429,35 +422,8 @@ func (mt *MediaTools) processMediaFile(path string) {
 	// Ajouter à la liste complète
 	mt.allMediaItems = append(mt.allMediaItems, mediaInfo)
 
-	// Appliquer le filtre si présent
-	if mt.currentFilter != "" {
-		// Re-filtrer toute la liste
-		filtered, err := mt.filterService.FilterMediaList(mt.allMediaItems, mt.currentFilter)
-		if err == nil {
-			mt.filteredMediaItems = filtered
-		}
-	} else {
-		mt.filteredMediaItems = mt.allMediaItems
-	}
-
-	// Mettre à jour l'affichage
-	mt.updateDisplayedItems()
-}
-
-// updateDisplayedItems met à jour la liste affichée avec les items filtrés
-func (mt *MediaTools) updateDisplayedItems() {
-	mt.listView.Clear()
-
-	itemsToDisplay := mt.filteredMediaItems
-	if mt.currentFilter == "" {
-		itemsToDisplay = mt.allMediaItems
-	}
-
-	for _, item := range itemsToDisplay {
-		mt.listView.AddItem(item)
-	}
-
-	mt.listView.Refresh()
+	// Ajouter à la liste principale
+	mt.listView.AddItem(mediaInfo)
 }
 
 func (mt *MediaTools) onSelectAllClicked() {
