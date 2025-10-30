@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/filters"
 )
 
 // FilterConditionRow represents a single filter condition with dropdowns
@@ -39,123 +40,9 @@ type FilterBar struct {
 	onFilterClear func()
 }
 
-// FilterFieldType represents the data type of a filter field
-type FilterFieldType string
-
-const (
-	FieldTypeNumeric FilterFieldType = "numeric"
-	FieldTypeString  FilterFieldType = "string"
-	FieldTypeBoolean FilterFieldType = "boolean"
-)
-
-// FilterFieldConfig defines all properties of a filter field
-type FilterFieldConfig struct {
-	Key              string          // Internal field key (e.g., "VIDEO_CODEC")
-	DisplayName      string          // Human-readable name (e.g., "Video Codec")
-	Type             FilterFieldType // Field data type
-	PredefinedValues []string        // Optional list of predefined values for dropdown
-	Placeholder      string          // Placeholder text for manual entry
-}
-
-// Filter field configurations - ADD NEW FILTERS HERE
-var filterFieldConfigs = []FilterFieldConfig{
-	{
-		Key:         "BITRATE",
-		DisplayName: "Bitrate (Total)",
-		Type:        FieldTypeNumeric,
-		Placeholder: "e.g., 2000kbps or 2mbps",
-	},
-	{
-		Key:         "VIDEO_BITRATE",
-		DisplayName: "Bitrate (Video)",
-		Type:        FieldTypeNumeric,
-		Placeholder: "e.g., 1500kbps",
-	},
-	{
-		Key:         "AUDIO_BITRATE",
-		DisplayName: "Bitrate (Audio)",
-		Type:        FieldTypeNumeric,
-		Placeholder: "e.g., 320kbps",
-	},
-	{
-		Key:              "VIDEO_CODEC",
-		DisplayName:      "Video Codec",
-		Type:             FieldTypeString,
-		PredefinedValues: []string{"h264", "h265", "hevc", "vp9", "av1", "mpeg4", "mpeg2video", "xvid"},
-	},
-	{
-		Key:              "AUDIO_CODEC",
-		DisplayName:      "Audio Codec",
-		Type:             FieldTypeString,
-		PredefinedValues: []string{"aac", "mp3", "ac3", "eac3", "dts", "flac", "opus", "vorbis", "pcm"},
-	},
-	{
-		Key:              "AUDIO_LANGUAGE",
-		DisplayName:      "Audio Language",
-		Type:             FieldTypeString,
-		PredefinedValues: []string{"fre", "eng", "spa", "deu", "ita", "jpn", "kor", "chi", "por", "rus", "ara", "hin"},
-	},
-	{
-		Key:              "SUBTITLE_LANGUAGE",
-		DisplayName:      "Subtitle Language",
-		Type:             FieldTypeString,
-		PredefinedValues: []string{"fre", "eng", "spa", "deu", "ita", "jpn", "kor", "chi", "por", "rus", "ara", "hin"},
-	},
-	{
-		Key:         "WIDTH",
-		DisplayName: "Width (px)",
-		Type:        FieldTypeNumeric,
-		Placeholder: "e.g., 1920",
-	},
-	{
-		Key:         "HEIGHT",
-		DisplayName: "Height (px)",
-		Type:        FieldTypeNumeric,
-		Placeholder: "e.g., 1080",
-	},
-	{
-		Key:         "DURATION",
-		DisplayName: "Duration (seconds)",
-		Type:        FieldTypeNumeric,
-		Placeholder: "e.g., 3600 (seconds)",
-	},
-	{
-		Key:         "FRAMERATE",
-		DisplayName: "Framerate (fps)",
-		Type:        FieldTypeNumeric,
-		Placeholder: "e.g., 30",
-	},
-	{
-		Key:         "AUDIO_CHANNELS",
-		DisplayName: "Audio Channels",
-		Type:        FieldTypeNumeric,
-		Placeholder: "e.g., 6",
-	},
-	{
-		Key:              "HAS_VIDEO",
-		DisplayName:      "Has Video Stream",
-		Type:             FieldTypeBoolean,
-		PredefinedValues: []string{"true", "false"},
-	},
-	{
-		Key:              "HAS_AUDIO",
-		DisplayName:      "Has Audio Stream",
-		Type:             FieldTypeBoolean,
-		PredefinedValues: []string{"true", "false"},
-	},
-	{
-		Key:              "HAS_SUBTITLES",
-		DisplayName:      "Has Subtitles",
-		Type:             FieldTypeBoolean,
-		PredefinedValues: []string{"true", "false"},
-	},
-}
-
-// Operator definitions per field type
-var operatorsByType = map[FilterFieldType][]string{
-	FieldTypeNumeric: {">", ">=", "<", "<=", "IS", "IS_NOT"},
-	FieldTypeString:  {"IS", "IS_NOT", "CONTAINS", "NOT_CONTAINS"},
-	FieldTypeBoolean: {"IS", "IS_NOT"},
+// getFilterFieldConfigs returns all available filter configurations
+func getFilterFieldConfigs() []filters.Filter {
+	return filters.GetAllFilters()
 }
 
 // NewFilterBar creates a new visual filter bar component
@@ -282,19 +169,22 @@ func (fb *FilterBar) createDialogContent() fyne.CanvasObject {
 func (fb *FilterBar) addCondition() {
 	row := &FilterConditionRow{}
 
+	// Get all available filters
+	allFilters := getFilterFieldConfigs()
+
 	// Create display options for the select widget
-	displayOptions := make([]string, len(filterFieldConfigs))
-	for i, config := range filterFieldConfigs {
-		displayOptions[i] = config.DisplayName
+	displayOptions := make([]string, len(allFilters))
+	for i, config := range allFilters {
+		displayOptions[i] = config.GetFieldConfig().DisplayName
 	}
 
 	// Field selector with display names
 	row.fieldSelect = widget.NewSelect(displayOptions, func(selected string) {
 		// Find actual field config from display name
-		var fieldConfig *FilterFieldConfig
-		for i := range filterFieldConfigs {
-			if filterFieldConfigs[i].DisplayName == selected {
-				fieldConfig = &filterFieldConfigs[i]
+		var fieldConfig filters.Filter
+		for i := range allFilters {
+			if allFilters[i].GetFieldConfig().DisplayName == selected {
+				fieldConfig = allFilters[i]
 				break
 			}
 		}
@@ -399,8 +289,8 @@ func (fb *FilterBar) removeCondition(row *FilterConditionRow) {
 }
 
 // updateOperatorsForField updates available operators based on field type
-func (fb *FilterBar) updateOperatorsForField(row *FilterConditionRow, fieldConfig *FilterFieldConfig) {
-	operators := operatorsByType[fieldConfig.Type]
+func (fb *FilterBar) updateOperatorsForField(row *FilterConditionRow, fieldConfig filters.Filter) {
+	operators := filters.OperatorsByType[fieldConfig.GetFieldConfig().Type]
 
 	row.operatorSelect.Options = operators
 	if len(operators) > 0 {
@@ -410,18 +300,18 @@ func (fb *FilterBar) updateOperatorsForField(row *FilterConditionRow, fieldConfi
 }
 
 // updateValueInputForField updates the value input based on field type
-func (fb *FilterBar) updateValueInputForField(row *FilterConditionRow, fieldConfig *FilterFieldConfig) {
+func (fb *FilterBar) updateValueInputForField(row *FilterConditionRow, fieldConfig filters.Filter) {
 	// Reset visibility
 	row.valueEntry.Hide()
 	row.valueSelect.Hide()
 
 	// If field has predefined values, show dropdown
-	if len(fieldConfig.PredefinedValues) > 0 {
-		row.valueSelect.Options = fieldConfig.PredefinedValues
+	if len(fieldConfig.GetFieldConfig().PredefinedValues) > 0 {
+		row.valueSelect.Options = fieldConfig.GetFieldConfig().PredefinedValues
 		row.valueSelect.Show()
 	} else {
 		// Otherwise show text entry with placeholder
-		row.valueEntry.PlaceHolder = fieldConfig.Placeholder
+		row.valueEntry.PlaceHolder = fieldConfig.GetFieldConfig().Placeholder
 		if row.valueEntry.PlaceHolder == "" {
 			row.valueEntry.PlaceHolder = "Value..."
 		}
@@ -438,13 +328,14 @@ func (fb *FilterBar) buildFilterString() string {
 	}
 
 	parts := make([]string, 0)
+	allFilters := getFilterFieldConfigs()
 
 	for i, row := range fb.conditions {
 		// Get field key from display name
 		var fieldKey string
-		for _, config := range filterFieldConfigs {
-			if config.DisplayName == row.fieldSelect.Selected {
-				fieldKey = config.Key
+		for _, config := range allFilters {
+			if config.GetFieldConfig().DisplayName == row.fieldSelect.Selected {
+				fieldKey = config.GetFieldConfig().Key
 				break
 			}
 		}
@@ -485,11 +376,12 @@ func (fb *FilterBar) applyFilters() {
 
 	// Count valid conditions
 	validConditions := 0
+	allFilters := getFilterFieldConfigs()
 	for _, row := range fb.conditions {
 		var fieldKey string
-		for _, config := range filterFieldConfigs {
-			if config.DisplayName == row.fieldSelect.Selected {
-				fieldKey = config.Key
+		for _, config := range allFilters {
+			if config.GetFieldConfig().DisplayName == row.fieldSelect.Selected {
+				fieldKey = config.GetFieldConfig().Key
 				break
 			}
 		}

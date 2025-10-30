@@ -2,9 +2,9 @@ package services
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
+	"github.com/Developpeur-du-dimanche/MediaTools/internal/filters"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/logger"
 	"github.com/Developpeur-du-dimanche/MediaTools/pkg/medias"
 )
@@ -66,11 +66,22 @@ type FilterExpression struct {
 }
 
 // FilterService handles media filtering
-type FilterService struct{}
+type FilterService struct {
+	filterRegistry map[FilterField]filters.Filter
+}
 
 // NewFilterService creates a new filter service
 func NewFilterService() *FilterService {
-	return &FilterService{}
+	// Build registry from all registered filters
+	registry := make(map[FilterField]filters.Filter)
+	for _, filter := range filters.GetAllFilters() {
+		config := filter.GetFieldConfig()
+		registry[FilterField(config.Key)] = filter
+	}
+
+	return &FilterService{
+		filterRegistry: registry,
+	}
 }
 
 // ParseFilter parses a filter string like "BITRATE > 2000 AND AUDIO_LANGUAGE IS FRE"
@@ -185,241 +196,15 @@ func (fs *FilterService) ApplyFilter(media *medias.FfprobeResult, expr *FilterEx
 
 // evaluateCondition evaluates a single condition against a media item
 func (fs *FilterService) evaluateCondition(media *medias.FfprobeResult, cond FilterCondition) bool {
-	switch cond.Field {
-	case FieldBitrate:
-		return fs.compareBitrateStr(media.Format.BitRate, cond.Operator, cond.Value)
-
-	case FieldVideoBitrate:
-		// Video bitrate not available in simplified structure
-		return false
-
-	case FieldAudioBitrate:
-		// Audio bitrate not available in simplified structure
-		return false
-
-	case FieldVideoCodec:
-		if len(media.Videos) == 0 {
-			return false
-		}
-		return fs.compareString(media.Videos[0].CodecName, cond.Operator, cond.Value)
-
-	case FieldAudioCodec:
-		if len(media.Audios) == 0 {
-			return false
-		}
-		return fs.compareString(media.Audios[0].CodecName, cond.Operator, cond.Value)
-
-	case FieldAudioLanguage:
-		return fs.hasAudioLanguage(media, cond.Operator, cond.Value)
-
-	case FieldSubLanguage:
-		return fs.hasSubtitleLanguage(media, cond.Operator, cond.Value)
-
-	case FieldWidth:
-		if len(media.Videos) == 0 {
-			return false
-		}
-		return fs.compareInt(media.Videos[0].Width, cond.Operator, cond.Value)
-
-	case FieldHeight:
-		if len(media.Videos) == 0 {
-			return false
-		}
-		return fs.compareInt(media.Videos[0].Height, cond.Operator, cond.Value)
-
-	case FieldDuration:
-		return fs.compareDurationTime(media.Format.DurationSeconds, cond.Operator, cond.Value)
-
-	case FieldFramerate:
-		// Framerate not available in simplified structure
-		return false
-
-	case FieldAudioChannels:
-		if len(media.Audios) == 0 {
-			return false
-		}
-		return fs.compareInt(media.Audios[0].Channels, cond.Operator, cond.Value)
-
-	case FieldHasVideo:
-		hasVideo := len(media.Videos) > 0
-		return fs.compareBool(hasVideo, cond.Operator, cond.Value)
-
-	case FieldHasAudio:
-		hasAudio := len(media.Audios) > 0
-		return fs.compareBool(hasAudio, cond.Operator, cond.Value)
-
-	case FieldHasSubtitles:
-		hasSubs := len(media.Subtitles) > 0
-		return fs.compareBool(hasSubs, cond.Operator, cond.Value)
-
-	default:
+	// Look up the filter from the registry
+	filter, exists := fs.filterRegistry[cond.Field]
+	if !exists {
 		logger.Warnf("Unknown filter field: %s", cond.Field)
 		return false
 	}
-}
 
-// compareBitrateStr compares bitrate values from string format (supports kb/s, mb/s)
-func (fs *FilterService) compareBitrateStr(actualBitrateStr string, op FilterOperator, valueStr string) bool {
-	// Parse actual bitrate string to int64
-	actualBitrate, err := strconv.ParseInt(actualBitrateStr, 10, 64)
-	if err != nil {
-		return false
-	}
-
-	// Parse value with unit (e.g., "2000kbps", "2mbps")
-	valueStr = strings.ToLower(strings.TrimSpace(valueStr))
-	valueStr = strings.ReplaceAll(valueStr, " ", "")
-
-	var targetBitrate int64
-
-	if strings.HasSuffix(valueStr, "kbps") || strings.HasSuffix(valueStr, "kb/s") {
-		numStr := strings.TrimSuffix(strings.TrimSuffix(valueStr, "kbps"), "kb/s")
-		num, err := strconv.ParseFloat(numStr, 64)
-		if err != nil {
-			return false
-		}
-		targetBitrate = int64(num * 1000)
-	} else if strings.HasSuffix(valueStr, "mbps") || strings.HasSuffix(valueStr, "mb/s") {
-		numStr := strings.TrimSuffix(strings.TrimSuffix(valueStr, "mbps"), "mb/s")
-		num, err := strconv.ParseFloat(numStr, 64)
-		if err != nil {
-			return false
-		}
-		targetBitrate = int64(num * 1000000)
-	} else {
-		// Assume bits per second
-		num, err := strconv.ParseInt(valueStr, 10, 64)
-		if err != nil {
-			return false
-		}
-		targetBitrate = num
-	}
-
-	return fs.compareInt64(actualBitrate, op, targetBitrate)
-}
-
-// compareDurationTime compares duration values (time.Duration type)
-func (fs *FilterService) compareDurationTime(actualDuration interface{}, op FilterOperator, valueStr string) bool {
-	// Convert to seconds
-	var actualSeconds float64
-	switch v := actualDuration.(type) {
-	case float64:
-		actualSeconds = v
-	case int64: // time.Duration in nanoseconds
-		actualSeconds = float64(v) / float64(1000000000)
-	default:
-		return false
-	}
-
-	target, err := strconv.ParseFloat(valueStr, 64)
-	if err != nil {
-		return false
-	}
-	return fs.compareFloat(actualSeconds, op, target)
-}
-
-// hasAudioLanguage checks if any audio stream matches the language
-func (fs *FilterService) hasAudioLanguage(media *medias.FfprobeResult, op FilterOperator, lang string) bool {
-	lang = strings.ToLower(strings.TrimSpace(lang))
-
-	for _, audio := range media.Audios {
-		audioLang := strings.ToLower(audio.Language)
-		if fs.compareString(audioLang, op, lang) {
-			return true
-		}
-	}
-	return false
-}
-
-// hasSubtitleLanguage checks if any subtitle stream matches the language
-func (fs *FilterService) hasSubtitleLanguage(media *medias.FfprobeResult, op FilterOperator, lang string) bool {
-	lang = strings.ToLower(strings.TrimSpace(lang))
-
-	for _, sub := range media.Subtitles {
-		subLang := strings.ToLower(sub.Language)
-		if fs.compareString(subLang, op, lang) {
-			return true
-		}
-	}
-	return false
-}
-
-// Comparison helpers
-func (fs *FilterService) compareInt(actual int, op FilterOperator, valueStr string) bool {
-	target, err := strconv.Atoi(valueStr)
-	if err != nil {
-		return false
-	}
-	return fs.compareInt64(int64(actual), op, int64(target))
-}
-
-func (fs *FilterService) compareInt64(actual int64, op FilterOperator, target int64) bool {
-	switch op {
-	case OpEquals:
-		return actual == target
-	case OpNotEquals:
-		return actual != target
-	case OpGreater:
-		return actual > target
-	case OpGreaterEq:
-		return actual >= target
-	case OpLess:
-		return actual < target
-	case OpLessEq:
-		return actual <= target
-	default:
-		return false
-	}
-}
-
-func (fs *FilterService) compareFloat(actual float64, op FilterOperator, target float64) bool {
-	switch op {
-	case OpEquals:
-		return actual == target
-	case OpNotEquals:
-		return actual != target
-	case OpGreater:
-		return actual > target
-	case OpGreaterEq:
-		return actual >= target
-	case OpLess:
-		return actual < target
-	case OpLessEq:
-		return actual <= target
-	default:
-		return false
-	}
-}
-
-func (fs *FilterService) compareString(actual string, op FilterOperator, target string) bool {
-	actual = strings.ToLower(strings.TrimSpace(actual))
-	target = strings.ToLower(strings.TrimSpace(target))
-
-	switch op {
-	case OpEquals:
-		return actual == target
-	case OpNotEquals:
-		return actual != target
-	case OpContains:
-		return strings.Contains(actual, target)
-	case OpNotContains:
-		return !strings.Contains(actual, target)
-	default:
-		return false
-	}
-}
-
-func (fs *FilterService) compareBool(actual bool, op FilterOperator, valueStr string) bool {
-	target := strings.ToLower(valueStr) == "true" || valueStr == "1"
-
-	switch op {
-	case OpEquals:
-		return actual == target
-	case OpNotEquals:
-		return actual != target
-	default:
-		return false
-	}
+	// Use the filter's Apply method
+	return filter.Apply(media, string(cond.Operator), cond.Value)
 }
 
 // FilterMediaList filters a list of media items
