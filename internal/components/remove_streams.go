@@ -61,15 +61,15 @@ func (rsc *RemoveStreamsComponent) initUI() {
 	}, func(value string) {
 		rsc.updateCriteriaUI(value)
 	})
-	rsc.operationSelect.SetSelected("Remove all streams of type")
 
 	// Stream type selector
 	rsc.streamTypeSelect = widget.NewSelect([]string{
 		"Audio",
 		"Subtitle",
 		"Video",
-	}, nil)
-	rsc.streamTypeSelect.SetSelected("Audio")
+	}, func(s string) {
+		rsc.updateCriteriaUI(rsc.operationSelect.Selected)
+	})
 
 	// Criteria entry (for manual input)
 	rsc.criteriaEntry = widget.NewEntry()
@@ -123,6 +123,10 @@ func (rsc *RemoveStreamsComponent) initUI() {
 	rsc.processButton = widget.NewButtonWithIcon("Process Files", theme.MediaPlayIcon(), func() {
 		rsc.startProcessing()
 	})
+
+	rsc.operationSelect.SetSelectedIndex(0)
+	rsc.streamTypeSelect.SetSelected("Audio")
+
 	rsc.processButton.Importance = widget.HighImportance
 }
 
@@ -316,4 +320,3 @@ func (rsc *RemoveStreamsComponent) getCriteria() map[string]string {
 
 	return criteria
 }
-

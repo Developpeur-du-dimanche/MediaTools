@@ -24,24 +24,27 @@ type MergeVideosComponent struct {
 	ffmpegService *services.FFmpegService
 	selectedFiles []*medias.FfprobeResult
 
-	filesList   *widget.List
-	mergeButton *widget.Button
-	outputEntry *widget.Entry
-	outputRow   *fyne.Container
-	progressBar *widget.ProgressBar
-	statusLabel *widget.Label
+	filesList     *widget.List
+	mergeButton   *widget.Button
+	outputEntry   *widget.Entry
+	outputRow     *fyne.Container
+	progressBar   *widget.ProgressBar
+	statusLabel   *widget.Label
+	refreshButton *widget.Button
 
-	onComplete func(outputPath string)
+	refreshList func() []*medias.FfprobeResult
+	onComplete  func(outputPath string)
 }
 
 // NewMergeVideosComponent creates a new merge videos component
-func NewMergeVideosComponent(window fyne.Window, files []*medias.FfprobeResult, ffmpegService *services.FFmpegService) *MergeVideosComponent {
+func NewMergeVideosComponent(window fyne.Window, ffmpegService *services.FFmpegService, refreshList func() []*medias.FfprobeResult) *MergeVideosComponent {
+
 	mvc := &MergeVideosComponent{
 		window:        window,
 		ffmpegService: ffmpegService,
-		selectedFiles: files,
+		selectedFiles: refreshList(),
 	}
-
+	mvc.refreshList = refreshList
 	mvc.initUI()
 	mvc.ExtendBaseWidget(mvc)
 	return mvc
@@ -113,6 +116,11 @@ func (mvc *MergeVideosComponent) initUI() {
 	})
 	mvc.mergeButton.Importance = widget.HighImportance
 
+	mvc.refreshButton = widget.NewButtonWithIcon("", theme.ViewRefreshIcon(), func() {
+		mvc.selectedFiles = mvc.refreshList()
+		mvc.filesList.Refresh()
+	})
+
 	if len(mvc.selectedFiles) < 2 {
 		mvc.mergeButton.Disable()
 	}
@@ -132,7 +140,7 @@ func (mvc *MergeVideosComponent) CreateRenderer() fyne.WidgetRenderer {
 		container.NewVBox(
 			header,
 			widget.NewSeparator(),
-			instructions,
+			container.New(layout.NewFormLayout(), mvc.refreshButton, instructions),
 			widget.NewLabel("Files to merge:"),
 		),
 		container.NewVBox(

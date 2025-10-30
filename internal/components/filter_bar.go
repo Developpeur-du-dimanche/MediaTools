@@ -50,11 +50,11 @@ const (
 
 // FilterFieldConfig defines all properties of a filter field
 type FilterFieldConfig struct {
-	Key          string          // Internal field key (e.g., "VIDEO_CODEC")
-	DisplayName  string          // Human-readable name (e.g., "Video Codec")
-	Type         FilterFieldType // Field data type
-	PredefinedValues []string    // Optional list of predefined values for dropdown
-	Placeholder  string          // Placeholder text for manual entry
+	Key              string          // Internal field key (e.g., "VIDEO_CODEC")
+	DisplayName      string          // Human-readable name (e.g., "Video Codec")
+	Type             FilterFieldType // Field data type
+	PredefinedValues []string        // Optional list of predefined values for dropdown
+	Placeholder      string          // Placeholder text for manual entry
 }
 
 // Filter field configurations - ADD NEW FILTERS HERE
@@ -268,7 +268,7 @@ func (fb *FilterBar) createDialogContent() fyne.CanvasObject {
 
 	// Main layout without nested scrolls
 	mainContent := container.NewBorder(
-		container.NewVBox(header, widget.NewLabel("")), // Header with spacing
+		container.NewVBox(header, widget.NewLabel("")),       // Header with spacing
 		container.NewVBox(widget.NewSeparator(), buttonsRow), // Footer with separator
 		nil,
 		nil,

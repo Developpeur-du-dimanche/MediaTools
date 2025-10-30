@@ -24,11 +24,11 @@ type CheckVideosComponent struct {
 	selectedFiles []*medias.FfprobeResult
 
 	// UI elements
-	resultsList   *widget.List
-	progressBar   *widget.ProgressBar
-	statusLabel   *widget.Label
-	checkButton   *widget.Button
-	filesList     *widget.List
+	resultsList *widget.List
+	progressBar *widget.ProgressBar
+	statusLabel *widget.Label
+	checkButton *widget.Button
+	filesList   *widget.List
 
 	// Data
 	checkResults []*services.VideoCheckResult
@@ -73,8 +73,8 @@ func (cvc *CheckVideosComponent) initUI() {
 		},
 		func() fyne.CanvasObject {
 			return container.NewHBox(
-				widget.NewLabel(""),  // Status icon
-				widget.NewLabel(""),  // Filename
+				widget.NewLabel(""), // Status icon
+				widget.NewLabel(""), // Filename
 			)
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {

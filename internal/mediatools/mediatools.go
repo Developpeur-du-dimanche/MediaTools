@@ -244,12 +244,21 @@ func (mt *MediaTools) createMergeTab() *container.TabItem {
 	placeholder := widget.NewLabel("Select at least 2 files above, then click 'Start Merge' to begin.")
 
 	startButton := widget.NewButtonWithIcon("Start Merge", theme.MediaPlayIcon(), func() {
+
 		selected := mt.listView.GetSelectedItems()
 		if len(selected) < 2 {
 			placeholder.SetText("Please select at least 2 files above.")
 			return
 		}
-		mt.mergeComponent = components.NewMergeVideosComponent(mt.window, selected, mt.ffmpegService)
+
+		mt.mergeComponent = components.NewMergeVideosComponent(mt.window, mt.ffmpegService, func() []*medias.FfprobeResult {
+			selected := mt.listView.GetSelectedItems()
+			if len(selected) < 2 {
+				placeholder.SetText("Please select at least 2 files above.")
+				return []*medias.FfprobeResult{}
+			}
+			return selected
+		})
 		mt.mergeTab.Content = mt.mergeComponent
 		mt.operationTabs.Refresh()
 	})
@@ -270,18 +279,12 @@ func (mt *MediaTools) createMergeTab() *container.TabItem {
 
 // createRemoveStreamsTab crée l'onglet pour supprimer des pistes
 func (mt *MediaTools) createRemoveStreamsTab() *container.TabItem {
-	placeholder := container.NewCenter(
-		widget.NewLabel("Select at least 1 file above, then click 'Start Processing' to begin."),
-	)
+	placeholder := widget.NewLabel("Select at least 1 file above, then click 'Start Processing' to begin.")
 
 	startButton := widget.NewButtonWithIcon("Start Processing", theme.ContentCutIcon(), func() {
 		selected := mt.listView.GetSelectedItems()
 		if len(selected) == 0 {
-			placeholder := container.NewCenter(
-				widget.NewLabel("Please select at least 1 file above."),
-			)
-			mt.removeStreamsTab.Content = placeholder
-			mt.operationTabs.Refresh()
+			placeholder.SetText("Please select at least 1 file above.")
 			return
 		}
 		mt.removeStreamsComponent = components.NewRemoveStreamsComponent(mt.window, selected, mt.ffmpegService)
@@ -297,7 +300,7 @@ func (mt *MediaTools) createRemoveStreamsTab() *container.TabItem {
 		),
 		nil,
 		nil,
-		placeholder,
+		container.NewCenter(placeholder),
 	)
 
 	return container.NewTabItem("Remove/Keep Streams", content)
@@ -305,17 +308,13 @@ func (mt *MediaTools) createRemoveStreamsTab() *container.TabItem {
 
 // createCheckVideosTab crée l'onglet pour vérifier l'intégrité des vidéos
 func (mt *MediaTools) createCheckVideosTab() *container.TabItem {
-	placeholder := container.NewCenter(
-		widget.NewLabel("Select at least 1 file above, then click 'Start Checking' to verify video integrity."),
-	)
+
+	placeholder := widget.NewLabel("Select at least 1 file above, then click 'Start Checking' to verify video integrity.")
 
 	startButton := widget.NewButtonWithIcon("Start Checking", theme.MediaPlayIcon(), func() {
 		selected := mt.listView.GetSelectedItems()
 		if len(selected) == 0 {
-			placeholder := container.NewCenter(
-				widget.NewLabel("Please select at least 1 file above."),
-			)
-			mt.checkVideosTab.Content = placeholder
+			placeholder.SetText("Please select at least 1 file above.")
 			mt.operationTabs.Refresh()
 			return
 		}
@@ -332,7 +331,7 @@ func (mt *MediaTools) createCheckVideosTab() *container.TabItem {
 		),
 		nil,
 		nil,
-		placeholder,
+		container.NewCenter(placeholder),
 	)
 
 	return container.NewTabItem("Check Videos", content)
@@ -367,7 +366,6 @@ func (mt *MediaTools) onScanProgress(progress services.ScanProgress) {
 	// Ne rien faire pendant le scan, le traitement se fera après
 	// Cette fonction est juste pour la mise à jour de l'UI via UpdateProgress
 }
-
 
 // scanFolder lance le scan d'un dossier
 func (mt *MediaTools) scanFolder(folderPath string) {
