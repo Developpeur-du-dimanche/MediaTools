@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -100,6 +101,24 @@ func (fs *FFmpegService) RemoveStreamsByType(ctx context.Context, inputFile, out
 			outputPath,
 			"-y",
 		}
+	case "metadata":
+		args = []string{
+			"-i", inputFile,
+			"-map", "0",
+			"-map_metadata", "-1", // Remove all metadata
+			"-c", "copy",
+			outputPath,
+			"-y",
+		}
+	case "attachments":
+		args = []string{
+			"-i", inputFile,
+			"-map", "0",
+			"-map", "-0:t", // Remove all attachments
+			"-c", "copy",
+			outputPath,
+			"-y",
+		}
 	default:
 		return fmt.Errorf("unsupported stream type: %s", streamType)
 	}
@@ -122,33 +141,19 @@ func (fs *FFmpegService) RemoveStreamsByType(ctx context.Context, inputFile, out
 func (fs *FFmpegService) RemoveStreamsByLanguage(ctx context.Context, inputFile, outputPath, streamType, language string, progress ProgressCallback) error {
 	logger.Infof("Removing %s streams with language %s from %s", streamType, language, inputFile)
 
-	// This requires mapping streams and is more complex
-	// For now, we'll implement a basic version
-	var streamSelector string
-	switch strings.ToLower(streamType) {
-	case "audio":
-		streamSelector = "a"
-	case "subtitle":
-		streamSelector = "s"
-	default:
-		return fmt.Errorf("unsupported stream type for language removal: %s", streamType)
-	}
-
-	// Build mapping to exclude streams with specific language
-	args := []string{
-		"-i", inputFile,
-		"-map", "0:v", // Keep all video
-		"-map", fmt.Sprintf("0:%s:m:language:%s?", streamSelector, language), // Map streams NOT matching language
-		"-map_metadata", "0",
-		"-c", "copy",
-		outputPath,
-		"-y",
-	}
-
-	cmd := exec.CommandContext(ctx, fs.ffmpegPath, args...)
-	output, err := cmd.CombinedOutput()
+	probeResult, err := fs.probeFile(ctx, inputFile)
 	if err != nil {
-		return fmt.Errorf("ffmpeg language removal failed: %w\nOutput: %s", err, string(output))
+		return err
+	}
+
+	if !fs.hasStreamWithLanguage(probeResult, streamType, language) {
+		return fs.copyFile(ctx, inputFile, outputPath, progress, "No streams removed; file copied")
+	}
+
+	args := fs.buildRemoveByLanguageArgs(inputFile, outputPath, streamType, language, probeResult)
+
+	if err := fs.runFFmpeg(ctx, args); err != nil {
+		return fmt.Errorf("ffmpeg language removal failed: %w", err)
 	}
 
 	if progress != nil {
@@ -159,38 +164,118 @@ func (fs *FFmpegService) RemoveStreamsByLanguage(ctx context.Context, inputFile,
 	return nil
 }
 
-// RemoveStreamsByCodec removes streams matching a specific codec
-func (fs *FFmpegService) RemoveStreamsByCodec(ctx context.Context, inputFile, outputPath, streamType, codec string, progress ProgressCallback) error {
-	logger.Infof("Removing %s streams with codec %s from %s", streamType, codec, inputFile)
+// probeFile probes a video file and returns the result
+func (fs *FFmpegService) probeFile(ctx context.Context, inputFile string) (*medias.FfprobeResult, error) {
+	ffprobeData := medias.NewFfprobe(inputFile,
+		medias.FFPROBE_LOGLEVEL_FATAL,
+		medias.PRINT_FORMAT_JSON,
+		medias.SHOW_FORMAT,
+		medias.SHOW_STREAMS,
+		medias.EXPERIMENTAL,
+	)
+	probeResult, err := ffprobeData.Probe(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ffprobe failed: %w", err)
+	}
+	return probeResult, nil
+}
 
-	// For this operation, we need to analyze streams first and build a custom map
-	// This is a simplified version - a full implementation would need stream inspection
-
-	var streamSelector string
+// hasStreamWithLanguage checks if the file has streams of the specified type and language
+func (fs *FFmpegService) hasStreamWithLanguage(probeResult *medias.FfprobeResult, streamType, language string) bool {
 	switch strings.ToLower(streamType) {
 	case "audio":
-		streamSelector = "a"
+		for _, stream := range probeResult.Audios {
+			if strings.EqualFold(stream.Language, language) {
+				return true
+			}
+		}
 	case "subtitle":
-		streamSelector = "s"
-	case "video":
-		streamSelector = "v"
-	default:
-		return fmt.Errorf("unsupported stream type: %s", streamType)
+		for _, stream := range probeResult.Subtitles {
+			if strings.EqualFold(stream.Language, language) {
+				return true
+			}
+		}
 	}
+	return false
+}
 
+// copyFile copies a file without modification
+func (fs *FFmpegService) copyFile(ctx context.Context, inputFile, outputPath string, progress ProgressCallback, message string) error {
 	args := []string{
 		"-i", inputFile,
-		"-map", "0",
-		"-map", fmt.Sprintf("-0:%s:codec:%s", streamSelector, codec), // Exclude streams with this codec
 		"-c", "copy",
 		outputPath,
 		"-y",
 	}
+	if err := fs.runFFmpeg(ctx, args); err != nil {
+		return fmt.Errorf("ffmpeg copy failed: %w", err)
+	}
+	if progress != nil {
+		progress(1.0, message)
+	}
+	return nil
+}
 
+// buildRemoveByLanguageArgs builds FFmpeg arguments for removing streams by language
+func (fs *FFmpegService) buildRemoveByLanguageArgs(inputFile, outputPath, streamType, language string, probeResult *medias.FfprobeResult) []string {
+	args := []string{
+		"-i", inputFile,
+		"-map", "0:v", // Keep all video
+	}
+
+	switch strings.ToLower(streamType) {
+	case "audio":
+		for i, stream := range probeResult.Audios {
+			if !strings.EqualFold(stream.Language, language) {
+				args = append(args, "-map", fmt.Sprintf("0:a:%d", i))
+			}
+		}
+	case "subtitle":
+		for i, stream := range probeResult.Subtitles {
+			if !strings.EqualFold(stream.Language, language) {
+				args = append(args, "-map", fmt.Sprintf("0:s:%d", i))
+			}
+		}
+	}
+
+	args = append(args,
+		"-map_metadata", "0",
+		"-c", "copy",
+		outputPath,
+		"-y",
+	)
+
+	return args
+}
+
+// runFFmpeg runs FFmpeg with the specified arguments
+func (fs *FFmpegService) runFFmpeg(ctx context.Context, args []string) error {
 	cmd := exec.CommandContext(ctx, fs.ffmpegPath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("ffmpeg codec removal failed: %w\nOutput: %s", err, string(output))
+		return fmt.Errorf("%w\nOutput: %s", err, string(output))
+	}
+	return nil
+}
+
+// RemoveStreamsByCodec removes streams matching a specific codec
+func (fs *FFmpegService) RemoveStreamsByCodec(ctx context.Context, inputFile, outputPath, streamType, codec string, progress ProgressCallback) error {
+	logger.Infof("Removing %s streams with codec %s from %s", streamType, codec, inputFile)
+
+	probeResult, err := fs.probeFile(ctx, inputFile)
+	if err != nil {
+		return err
+	}
+
+	if !fs.hasStreamWithCodec(probeResult, streamType, codec) {
+		logger.Infof("No %s streams with codec %s found in %s; skipping removal", streamType, codec, inputFile)
+		return fs.copyFile(ctx, inputFile, outputPath, progress, "No streams removed; file copied")
+	}
+
+	args := fs.buildRemoveByCodecArgs(inputFile, outputPath, streamType, codec, probeResult)
+
+	if err := fs.runFFmpeg(ctx, args); err != nil {
+		return fmt.Errorf("ffmpeg codec removal failed: %w", err)
 	}
 
 	if progress != nil {
@@ -199,6 +284,79 @@ func (fs *FFmpegService) RemoveStreamsByCodec(ctx context.Context, inputFile, ou
 
 	logger.Infof("Successfully removed %s streams with codec %s", streamType, codec)
 	return nil
+}
+
+// hasStreamWithCodec checks if the file has streams of the specified type and codec
+func (fs *FFmpegService) hasStreamWithCodec(probeResult *medias.FfprobeResult, streamType, codec string) bool {
+	switch strings.ToLower(streamType) {
+	case "audio":
+		for _, stream := range probeResult.Audios {
+			if strings.EqualFold(stream.CodecName, codec) {
+				return true
+			}
+		}
+	case "subtitle":
+		for _, stream := range probeResult.Subtitles {
+			if strings.EqualFold(stream.CodecName, codec) {
+				return true
+			}
+		}
+	case "video":
+		for _, stream := range probeResult.Videos {
+			if strings.EqualFold(stream.CodecName, codec) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// buildRemoveByCodecArgs builds FFmpeg arguments for removing streams by codec
+func (fs *FFmpegService) buildRemoveByCodecArgs(inputFile, outputPath, streamType, codec string, probeResult *medias.FfprobeResult) []string {
+	args := []string{
+		"-i", inputFile,
+	}
+
+	switch strings.ToLower(streamType) {
+	case "audio":
+		// Map video streams
+		args = append(args, "-map", "0:v")
+		// Map audio streams excluding the codec
+		for i, stream := range probeResult.Audios {
+			if !strings.EqualFold(stream.CodecName, codec) {
+				args = append(args, "-map", fmt.Sprintf("0:a:%d", i))
+			}
+		}
+		// Map subtitle streams
+		args = append(args, "-map", "0:s?")
+	case "subtitle":
+		// Map video and audio streams
+		args = append(args, "-map", "0:v", "-map", "0:a")
+		// Map subtitle streams excluding the codec
+		for i, stream := range probeResult.Subtitles {
+			if !strings.EqualFold(stream.CodecName, codec) {
+				args = append(args, "-map", fmt.Sprintf("0:s:%d", i))
+			}
+		}
+	case "video":
+		// Map video streams excluding the codec
+		for i, stream := range probeResult.Videos {
+			if !strings.EqualFold(stream.CodecName, codec) {
+				args = append(args, "-map", fmt.Sprintf("0:v:%d", i))
+			}
+		}
+		// Map audio and subtitle streams
+		args = append(args, "-map", "0:a", "-map", "0:s?")
+	}
+
+	args = append(args,
+		"-map_metadata", "0",
+		"-c", "copy",
+		outputPath,
+		"-y",
+	)
+
+	return args
 }
 
 // KeepOnlyStreamsByLanguage keeps only streams matching a specific language
@@ -395,32 +553,7 @@ func (fs *FFmpegService) captureProgress(stderrPipe io.ReadCloser, duration floa
 		}
 	}
 
-	if err := cmd.Wait(); err != nil {
-		// Check if there were actual errors in the output
-		if strings.Contains(errorOutput, "error") || strings.Contains(errorOutput, "Error") {
-			result.IsValid = false
-			result.HasErrors = true
-			result.Error = errorOutput
-		}
-	}
-
-	// Check for errors in output
-	if strings.Contains(errorOutput, "error") || strings.Contains(errorOutput, "Error") {
-		result.IsValid = false
-		result.HasErrors = true
-		result.Error = errorOutput
-	}
-
-	if progress != nil {
-		if result.IsValid {
-			progress(1.0, "Video is valid")
-		} else {
-			progress(1.0, "Video has errors")
-		}
-	}
-
-	logger.Infof("Video check complete for %s: valid=%v", inputFile, result.IsValid)
-	return result, nil
+	return errorOutput
 }
 
 // getVideoDuration gets the duration of a video file using ffprobe
