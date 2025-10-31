@@ -1,0 +1,53 @@
+{
+  "MediaTools": "MediaTools",
+  "ScannedFiles": "Fichiers scannés",
+  "Clean": "Nettoyer",
+  "SelectAll": "Tout sélectionner",
+  "UnselectAll": "Tout désélectionner",
+
+  "Filter": "Filtrer",
+  "ApplyFilter": "Appliquer le filtre",
+  "ClearFilter": "Effacer le filtre",
+  "NoFilterApplied": "Aucun filtre appliqué",
+  "NoFilterAppliedShowingAll": "Aucun filtre appliqué - Affichage de tous les fichiers",
+  "FilterCleared": "Filtre effacé - Affichage de tous les fichiers",
+  "FilterError": "Erreur de filtre: {{.Error}}",
+  "FilterResults": "Filtre: {{.Filter}} - {{.Count}} résultats",
+
+  "MergeVideos": "Fusionner les vidéos",
+  "StartMerge": "Démarrer la fusion",
+  "SelectAtLeast2Files": "Sélectionnez au moins 2 fichiers ci-dessus, puis cliquez sur 'Démarrer la fusion' pour commencer.",
+  "PleaseSelectAtLeast2Files": "Veuillez sélectionner au moins 2 fichiers ci-dessus.",
+
+  "RemoveKeepStreams": "Supprimer/Garder les pistes",
+  "StartProcessing": "Démarrer le traitement",
+  "SelectAtLeast1File": "Sélectionnez au moins 1 fichier ci-dessus, puis cliquez sur 'Démarrer le traitement' pour commencer.",
+  "PleaseSelectAtLeast1File": "Veuillez sélectionner au moins 1 fichier ci-dessus.",
+
+  "CheckVideos": "Vérifier les vidéos",
+  "StartChecking": "Démarrer la vérification",
+  "SelectAtLeast1FileCheck": "Sélectionnez au moins 1 fichier ci-dessus, puis cliquez sur 'Démarrer la vérification' pour vérifier l'intégrité des vidéos.",
+
+  "OpenFile": "Ouvrir un fichier",
+  "OpenFolder": "Ouvrir un dossier",
+  "ScanningFolder": "Scan du dossier en cours...",
+  "Cancel": "Annuler",
+
+  "FileName": "Nom du fichier",
+  "Duration": "Durée",
+  "Size": "Taille",
+  "Resolution": "Résolution",
+  "Codec": "Codec",
+  "Bitrate": "Débit",
+
+  "Video": "Vidéo",
+  "Audio": "Audio",
+  "Subtitle": "Sous-titre",
+
+  "Language": "Langue",
+  "Settings": "Paramètres",
+  "LanguageSelection": "Sélection de la langue",
+  "English": "English",
+  "French": "Français",
+  "Close": "Fermer"
+}

@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Developpeur-du-dimanche/MediaTools/internal/components"
@@ -39,6 +40,8 @@ type MediaTools struct {
 	cleanButton    *widget.Button
 	selectAllBtn   *widget.Button
 	unselectAllBtn *widget.Button
+	settingsButton *widget.Button
+	settingsDialog *components.SettingsDialog
 
 	// Tabs for operations (below media list)
 	operationTabs    *container.AppTabs
@@ -63,7 +66,7 @@ type MediaTools struct {
 func NewMediaTools(app fyne.App) *MediaTools {
 	mt := &MediaTools{
 		app:    app,
-		window: app.NewWindow("MediaTools"),
+		window: app.NewWindow(lang.L("MediaTools")),
 	}
 
 	mt.initWindow()
@@ -100,9 +103,11 @@ func (mt *MediaTools) initComponents() {
 	mt.openFolder = components.NewOpenFolder(mt.window, mt.onFolderOpened, mt.onScanProgress)
 	mt.openFile = components.NewOpenFile(mt.window, mt.onFileOpened)
 	mt.filterBar = components.NewFilterBar(mt.window, nil, nil)
-	mt.cleanButton = widget.NewButtonWithIcon("Clean", theme.DeleteIcon(), mt.onCleanButtonClicked)
-	mt.selectAllBtn = widget.NewButtonWithIcon("Select All", theme.CheckButtonCheckedIcon(), mt.onSelectAllClicked)
-	mt.unselectAllBtn = widget.NewButtonWithIcon("Unselect All", theme.CheckButtonIcon(), mt.onUnselectAllClicked)
+	mt.cleanButton = widget.NewButtonWithIcon(lang.L("Clean"), theme.DeleteIcon(), mt.onCleanButtonClicked)
+	mt.selectAllBtn = widget.NewButtonWithIcon(lang.L("SelectAll"), theme.CheckButtonCheckedIcon(), mt.onSelectAllClicked)
+	mt.unselectAllBtn = widget.NewButtonWithIcon(lang.L("UnselectAll"), theme.CheckButtonIcon(), mt.onUnselectAllClicked)
+	mt.settingsButton = widget.NewButtonWithIcon(lang.L("Settings"), theme.SettingsIcon(), mt.onSettingsClicked)
+	mt.settingsDialog = components.NewSettingsDialog(mt.app, mt.window)
 
 	// Initialiser les composants pour les onglets (seront créés à la demande)
 	mt.filterResultsList = nil
@@ -122,10 +127,12 @@ func (mt *MediaTools) setupLayout() {
 		widget.NewSeparator(),
 		mt.selectAllBtn,
 		mt.unselectAllBtn,
+		widget.NewSeparator(),
+		mt.settingsButton,
 	)
 
 	// Section de la liste principale des fichiers scannés
-	mediaListHeader := widget.NewLabelWithStyle("Scanned Files", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	mediaListHeader := widget.NewLabelWithStyle(lang.L("ScannedFiles"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
 	mediaSection := container.NewBorder(
 		container.NewVBox(
@@ -189,33 +196,36 @@ func (mt *MediaTools) createFilterTab() *container.TabItem {
 		},
 	)
 
-	resultsLabel := widget.NewLabel("No filter applied")
+	resultsLabel := widget.NewLabel(lang.L("NoFilterApplied"))
 	resultsLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	applyButton := widget.NewButtonWithIcon("Apply Filter", theme.SearchIcon(), func() {
+	applyButton := widget.NewButtonWithIcon(lang.L("ApplyFilter"), theme.SearchIcon(), func() {
 		filterStr := mt.filterBar.GetFilterText()
 		if filterStr == "" {
-			resultsLabel.SetText("No filter applied - Showing all files")
+			resultsLabel.SetText(lang.L("NoFilterAppliedShowingAll"))
 			mt.filteredMediaItems = mt.allMediaItems
 		} else {
 			// Apply filter without affecting the main list
 			filtered, err := mt.filterService.FilterMediaList(mt.allMediaItems, filterStr)
 			if err != nil {
 				logger.Errorf("Filter error: %v", err)
-				resultsLabel.SetText(fmt.Sprintf("Filter error: %v", err))
+				resultsLabel.SetText(lang.L("FilterError", map[string]any{"Error": err.Error()}))
 				return
 			}
 			mt.filteredMediaItems = filtered
-			resultsLabel.SetText(fmt.Sprintf("Filter: %s - %d results", filterStr, len(mt.filteredMediaItems)))
+			resultsLabel.SetText(lang.L("FilterResults", map[string]any{
+				"Filter": filterStr,
+				"Count":  len(mt.filteredMediaItems),
+			}))
 			logger.Infof("Filter applied: %d/%d items match", len(filtered), len(mt.allMediaItems))
 		}
 		mt.filterResultsList.Refresh()
 	})
 	applyButton.Importance = widget.HighImportance
 
-	clearButton := widget.NewButtonWithIcon("Clear Filter", theme.ContentClearIcon(), func() {
+	clearButton := widget.NewButtonWithIcon(lang.L("ClearFilter"), theme.ContentClearIcon(), func() {
 		mt.filteredMediaItems = mt.allMediaItems
-		resultsLabel.SetText("Filter cleared - Showing all files")
+		resultsLabel.SetText(lang.L("FilterCleared"))
 		mt.filterResultsList.Refresh()
 	})
 
@@ -236,25 +246,25 @@ func (mt *MediaTools) createFilterTab() *container.TabItem {
 		mt.filterResultsList,
 	)
 
-	return container.NewTabItem("Filter", content)
+	return container.NewTabItem(lang.L("Filter"), content)
 }
 
 // createMergeTab crée l'onglet pour fusionner des vidéos
 func (mt *MediaTools) createMergeTab() *container.TabItem {
-	placeholder := widget.NewLabel("Select at least 2 files above, then click 'Start Merge' to begin.")
+	placeholder := widget.NewLabel(lang.L("SelectAtLeast2Files"))
 
-	startButton := widget.NewButtonWithIcon("Start Merge", theme.MediaPlayIcon(), func() {
+	startButton := widget.NewButtonWithIcon(lang.L("StartMerge"), theme.MediaPlayIcon(), func() {
 
 		selected := mt.listView.GetSelectedItems()
 		if len(selected) < 2 {
-			placeholder.SetText("Please select at least 2 files above.")
+			placeholder.SetText(lang.L("PleaseSelectAtLeast2Files"))
 			return
 		}
 
 		mt.mergeComponent = components.NewMergeVideosComponent(mt.window, mt.ffmpegService, func() []*medias.FfprobeResult {
 			selected := mt.listView.GetSelectedItems()
 			if len(selected) < 2 {
-				placeholder.SetText("Please select at least 2 files above.")
+				placeholder.SetText(lang.L("PleaseSelectAtLeast2Files"))
 				return []*medias.FfprobeResult{}
 			}
 			return selected
@@ -274,17 +284,17 @@ func (mt *MediaTools) createMergeTab() *container.TabItem {
 		container.NewCenter(placeholder),
 	)
 
-	return container.NewTabItem("Merge Videos", content)
+	return container.NewTabItem(lang.L("MergeVideos"), content)
 }
 
 // createRemoveStreamsTab crée l'onglet pour supprimer des pistes
 func (mt *MediaTools) createRemoveStreamsTab() *container.TabItem {
-	placeholder := widget.NewLabel("Select at least 1 file above, then click 'Start Processing' to begin.")
+	placeholder := widget.NewLabel(lang.L("SelectAtLeast1File"))
 
-	startButton := widget.NewButtonWithIcon("Start Processing", theme.ContentCutIcon(), func() {
+	startButton := widget.NewButtonWithIcon(lang.L("StartProcessing"), theme.ContentCutIcon(), func() {
 		selected := mt.listView.GetSelectedItems()
 		if len(selected) == 0 {
-			placeholder.SetText("Please select at least 1 file above.")
+			placeholder.SetText(lang.L("PleaseSelectAtLeast1File"))
 			return
 		}
 		mt.removeStreamsComponent = components.NewRemoveStreamsComponent(mt.window, selected, mt.ffmpegService)
@@ -303,18 +313,18 @@ func (mt *MediaTools) createRemoveStreamsTab() *container.TabItem {
 		container.NewCenter(placeholder),
 	)
 
-	return container.NewTabItem("Remove/Keep Streams", content)
+	return container.NewTabItem(lang.L("RemoveKeepStreams"), content)
 }
 
 // createCheckVideosTab crée l'onglet pour vérifier l'intégrité des vidéos
 func (mt *MediaTools) createCheckVideosTab() *container.TabItem {
 
-	placeholder := widget.NewLabel("Select at least 1 file above, then click 'Start Checking' to verify video integrity.")
+	placeholder := widget.NewLabel(lang.L("SelectAtLeast1FileCheck"))
 
-	startButton := widget.NewButtonWithIcon("Start Checking", theme.MediaPlayIcon(), func() {
+	startButton := widget.NewButtonWithIcon(lang.L("StartChecking"), theme.MediaPlayIcon(), func() {
 		selected := mt.listView.GetSelectedItems()
 		if len(selected) == 0 {
-			placeholder.SetText("Please select at least 1 file above.")
+			placeholder.SetText(lang.L("PleaseSelectAtLeast1File"))
 			mt.operationTabs.Refresh()
 			return
 		}
@@ -334,7 +344,7 @@ func (mt *MediaTools) createCheckVideosTab() *container.TabItem {
 		container.NewCenter(placeholder),
 	)
 
-	return container.NewTabItem("Check Videos", content)
+	return container.NewTabItem(lang.L("CheckVideos"), content)
 }
 
 func (mt *MediaTools) onHistoryFolderSelected(path string) {
@@ -430,6 +440,10 @@ func (mt *MediaTools) onSelectAllClicked() {
 
 func (mt *MediaTools) onUnselectAllClicked() {
 	mt.listView.UnselectAll()
+}
+
+func (mt *MediaTools) onSettingsClicked() {
+	mt.settingsDialog.Show()
 }
 
 // Run démarre l'application

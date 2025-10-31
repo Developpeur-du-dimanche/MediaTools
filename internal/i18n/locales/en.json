@@ -1,0 +1,53 @@
+{
+  "MediaTools": "MediaTools",
+  "ScannedFiles": "Scanned Files",
+  "Clean": "Clean",
+  "SelectAll": "Select All",
+  "UnselectAll": "Unselect All",
+
+  "Filter": "Filter",
+  "ApplyFilter": "Apply Filter",
+  "ClearFilter": "Clear Filter",
+  "NoFilterApplied": "No filter applied",
+  "NoFilterAppliedShowingAll": "No filter applied - Showing all files",
+  "FilterCleared": "Filter cleared - Showing all files",
+  "FilterError": "Filter error: {{.Error}}",
+  "FilterResults": "Filter: {{.Filter}} - {{.Count}} results",
+
+  "MergeVideos": "Merge Videos",
+  "StartMerge": "Start Merge",
+  "SelectAtLeast2Files": "Select at least 2 files above, then click 'Start Merge' to begin.",
+  "PleaseSelectAtLeast2Files": "Please select at least 2 files above.",
+
+  "RemoveKeepStreams": "Remove/Keep Streams",
+  "StartProcessing": "Start Processing",
+  "SelectAtLeast1File": "Select at least 1 file above, then click 'Start Processing' to begin.",
+  "PleaseSelectAtLeast1File": "Please select at least 1 file above.",
+
+  "CheckVideos": "Check Videos",
+  "StartChecking": "Start Checking",
+  "SelectAtLeast1FileCheck": "Select at least 1 file above, then click 'Start Checking' to verify video integrity.",
+
+  "OpenFile": "Open File",
+  "OpenFolder": "Open Folder",
+  "ScanningFolder": "Scanning folder...",
+  "Cancel": "Cancel",
+
+  "FileName": "File Name",
+  "Duration": "Duration",
+  "Size": "Size",
+  "Resolution": "Resolution",
+  "Codec": "Codec",
+  "Bitrate": "Bitrate",
+
+  "Video": "Video",
+  "Audio": "Audio",
+  "Subtitle": "Subtitle",
+
+  "Language": "Language",
+  "Settings": "Settings",
+  "LanguageSelection": "Language Selection",
+  "English": "English",
+  "French": "Français",
+  "Close": "Close"
+}
