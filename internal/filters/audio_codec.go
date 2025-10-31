@@ -10,8 +10,14 @@ func (f AudioCodecFilter) Apply(data *medias.FfprobeResult, operator string, val
 		return false
 	}
 
-	// Check the codec of the first audio stream
-	return compareString(data.Audios[0].CodecName, operator, value)
+	// Loop through all audio streams and check if any matches the codec
+	for _, audio := range data.Audios {
+		if compareString(audio.CodecName, operator, value) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (f AudioCodecFilter) GetFieldConfig() FilterFieldConfig {

@@ -21,6 +21,10 @@ type FilterConditionRow struct {
 	valueSelect    *widget.Select
 	logicalOp      *widget.Select
 	removeButton   *widget.Button
+	groupButton    *widget.Button      // "🔗 Group" / "➖ Ungroup"
+	isGroupStart   bool                // true if this is the start of a group
+	isInGroup      bool                // true if this condition is part of a group
+	groupContainer *fyne.Container     // Container with border for the group (only for group start)
 }
 
 // FilterBar represents the visual filter builder component
@@ -218,6 +222,11 @@ func (fb *FilterBar) addCondition() {
 	})
 	row.removeButton.Importance = widget.DangerImportance
 
+	// Group button - will be created later to access fb
+	row.groupButton = widget.NewButton("🔗 Group", func() {
+		fb.toggleGroup(row)
+	})
+
 	// Build the row container with better styling
 	var rowContent *fyne.Container
 
@@ -236,7 +245,7 @@ func (fb *FilterBar) addCondition() {
 			container.NewBorder(
 				nil, nil,
 				widget.NewLabel("  Where"),
-				row.removeButton,
+				container.NewHBox(row.groupButton, row.removeButton),
 				container.NewHBox(
 					container.NewGridWithColumns(3,
 						row.fieldSelect,
@@ -252,7 +261,7 @@ func (fb *FilterBar) addCondition() {
 		rowContent = container.NewBorder(
 			nil, nil,
 			widget.NewLabel("  Where"),
-			row.removeButton,
+			container.NewHBox(row.groupButton, row.removeButton),
 			container.NewHBox(
 				container.NewGridWithColumns(3,
 					row.fieldSelect,
@@ -269,6 +278,11 @@ func (fb *FilterBar) addCondition() {
 
 // removeCondition removes a filter condition row
 func (fb *FilterBar) removeCondition(row *FilterConditionRow) {
+	// If removing a grouped condition, ungroup first
+	if row.isGroupStart || row.isInGroup {
+		fb.ungroupConditions(row)
+	}
+
 	newConditions := make([]*FilterConditionRow, 0)
 	for _, c := range fb.conditions {
 		if c != row {
@@ -285,6 +299,92 @@ func (fb *FilterBar) removeCondition(row *FilterConditionRow) {
 	// Refresh dialog if it's open
 	if fb.filterDialog != nil {
 		// This will be handled by the refresh in the dialog
+	}
+}
+
+// toggleGroup toggles the grouping state of a condition
+func (fb *FilterBar) toggleGroup(row *FilterConditionRow) {
+	if row.isGroupStart {
+		// Already grouped, so ungroup
+		fb.ungroupConditions(row)
+	} else {
+		// Not grouped, so create a group with next condition
+		fb.groupWithNext(row)
+	}
+}
+
+// groupWithNext creates a group starting from this condition
+func (fb *FilterBar) groupWithNext(row *FilterConditionRow) {
+	// Find the index of this row
+	rowIndex := -1
+	for i, c := range fb.conditions {
+		if c == row {
+			rowIndex = i
+			break
+		}
+	}
+
+	// Can't group if this is the last condition
+	if rowIndex == -1 || rowIndex >= len(fb.conditions)-1 {
+		return
+	}
+
+	// Mark this row as group start
+	row.isGroupStart = true
+	row.isInGroup = true
+	row.groupButton.SetText("➖ Ungroup")
+
+	// Mark next row as in group
+	nextRow := fb.conditions[rowIndex+1]
+	nextRow.isInGroup = true
+	nextRow.groupButton.SetText("➖ Ungroup")
+
+	// Refresh the dialog to show visual grouping
+	fb.refreshDialog()
+}
+
+// ungroupConditions removes grouping from a condition and its group
+func (fb *FilterBar) ungroupConditions(row *FilterConditionRow) {
+	// Find the start of the group
+	startIndex := -1
+	for i, c := range fb.conditions {
+		if c == row || (c.isGroupStart && row.isInGroup) {
+			if c.isGroupStart {
+				startIndex = i
+				break
+			}
+		}
+		if c == row && c.isGroupStart {
+			startIndex = i
+			break
+		}
+	}
+
+	if startIndex == -1 {
+		return
+	}
+
+	// Unmark all conditions in the group
+	for i := startIndex; i < len(fb.conditions); i++ {
+		if fb.conditions[i].isInGroup {
+			fb.conditions[i].isInGroup = false
+			fb.conditions[i].isGroupStart = false
+			fb.conditions[i].groupButton.SetText("🔗 Group")
+		} else if i > startIndex {
+			break
+		}
+	}
+
+	// Refresh the dialog
+	fb.refreshDialog()
+}
+
+// refreshDialog refreshes the filter dialog content
+func (fb *FilterBar) refreshDialog() {
+	if fb.filterDialog != nil {
+		// Trigger a refresh by hiding and showing
+		// This is a simple approach - in a real app you might want to rebuild the content
+		fb.filterDialog.Refresh()
 	}
 }
 
@@ -329,42 +429,112 @@ func (fb *FilterBar) buildFilterString() string {
 
 	parts := make([]string, 0)
 	allFilters := getFilterFieldConfigs()
+	i := 0
 
-	for i, row := range fb.conditions {
-		// Get field key from display name
-		var fieldKey string
-		for _, config := range allFilters {
-			if config.GetFieldConfig().DisplayName == row.fieldSelect.Selected {
-				fieldKey = config.GetFieldConfig().Key
-				break
+	for i < len(fb.conditions) {
+		row := fb.conditions[i]
+
+		// Check if this is the start of a group
+		if row.isGroupStart {
+			// Build the grouped conditions
+			groupParts := make([]string, 0)
+
+			for i < len(fb.conditions) && fb.conditions[i].isInGroup {
+				groupRow := fb.conditions[i]
+
+				// Get field key from display name
+				var fieldKey string
+				for _, config := range allFilters {
+					if config.GetFieldConfig().DisplayName == groupRow.fieldSelect.Selected {
+						fieldKey = config.GetFieldConfig().Key
+						break
+					}
+				}
+
+				operator := groupRow.operatorSelect.Selected
+				var value string
+
+				if groupRow.valueSelect.Visible() {
+					value = groupRow.valueSelect.Selected
+				} else {
+					value = groupRow.valueEntry.Text
+				}
+
+				// Skip incomplete conditions
+				if fieldKey == "" || operator == "" || value == "" {
+					i++
+					continue
+				}
+
+				condition := fmt.Sprintf("%s %s %s", fieldKey, operator, value)
+				groupParts = append(groupParts, condition)
+
+				// Add logical operator within the group (if not the last in group)
+				if i+1 < len(fb.conditions) && fb.conditions[i+1].isInGroup {
+					logicalOp := fb.conditions[i+1].logicalOp.Selected
+					if logicalOp == "" {
+						logicalOp = "AND"
+					}
+					groupParts = append(groupParts, logicalOp)
+				}
+
+				i++
 			}
-		}
 
-		operator := row.operatorSelect.Selected
-		var value string
+			// Add the group as a parenthesized expression
+			if len(groupParts) > 0 {
+				groupStr := "(" + strings.Join(groupParts, " ") + ")"
 
-		if row.valueSelect.Visible() {
-			value = row.valueSelect.Selected
+				// Add logical operator before the group (if not first element)
+				if len(parts) > 0 && i > 0 {
+					logicalOp := fb.conditions[i-len(groupParts)].logicalOp.Selected
+					if logicalOp == "" {
+						logicalOp = "AND"
+					}
+					parts = append(parts, logicalOp)
+				}
+
+				parts = append(parts, groupStr)
+			}
 		} else {
-			value = row.valueEntry.Text
-		}
-
-		// Skip incomplete conditions
-		if fieldKey == "" || operator == "" || value == "" {
-			continue
-		}
-
-		condition := fmt.Sprintf("%s %s %s", fieldKey, operator, value)
-
-		if i > 0 && len(parts) > 0 {
-			logicalOp := row.logicalOp.Selected
-			if logicalOp == "" {
-				logicalOp = "AND"
+			// Regular non-grouped condition
+			var fieldKey string
+			for _, config := range allFilters {
+				if config.GetFieldConfig().DisplayName == row.fieldSelect.Selected {
+					fieldKey = config.GetFieldConfig().Key
+					break
+				}
 			}
-			parts = append(parts, logicalOp)
-		}
 
-		parts = append(parts, condition)
+			operator := row.operatorSelect.Selected
+			var value string
+
+			if row.valueSelect.Visible() {
+				value = row.valueSelect.Selected
+			} else {
+				value = row.valueEntry.Text
+			}
+
+			// Skip incomplete conditions
+			if fieldKey == "" || operator == "" || value == "" {
+				i++
+				continue
+			}
+
+			condition := fmt.Sprintf("%s %s %s", fieldKey, operator, value)
+
+			// Add logical operator (if not first element)
+			if len(parts) > 0 && i > 0 {
+				logicalOp := row.logicalOp.Selected
+				if logicalOp == "" {
+					logicalOp = "AND"
+				}
+				parts = append(parts, logicalOp)
+			}
+
+			parts = append(parts, condition)
+			i++
+		}
 	}
 
 	return strings.Join(parts, " ")
