@@ -93,6 +93,26 @@ func (mt *MediaTools) initComponents() {
 	mt.filterService = services.NewFilterService()
 	mt.ffmpegService = services.NewFFmpegService()
 
+	// Load custom FFmpeg path if saved
+	savedFFmpegPath := mt.app.Preferences().StringWithFallback("ffmpeg_path", "")
+
+	if savedFFmpegPath == "" {
+		osPath, err := mt.ffmpegService.LocateFFmpeg()
+
+		if err == nil {
+			savedFFmpegPath = osPath
+			logger.Infof("FFmpeg found at: %s", osPath)
+		} else {
+			logger.Warnf("FFmpeg not found in system PATH, using default 'ffmpeg'")
+			savedFFmpegPath = "ffmpeg"
+		}
+	}
+
+	if savedFFmpegPath != "" && savedFFmpegPath != "ffmpeg" {
+		mt.ffmpegService.SetFFmpegPath(savedFFmpegPath)
+		logger.Infof("Using custom FFmpeg path: %s", savedFFmpegPath)
+	}
+
 	// Initialiser les données
 	mt.allMediaItems = make([]*medias.FfprobeResult, 0)
 	mt.filteredMediaItems = make([]*medias.FfprobeResult, 0)
@@ -107,7 +127,7 @@ func (mt *MediaTools) initComponents() {
 	mt.selectAllBtn = widget.NewButtonWithIcon(lang.L("SelectAll"), theme.CheckButtonCheckedIcon(), mt.onSelectAllClicked)
 	mt.unselectAllBtn = widget.NewButtonWithIcon(lang.L("UnselectAll"), theme.CheckButtonIcon(), mt.onUnselectAllClicked)
 	mt.settingsButton = widget.NewButtonWithIcon(lang.L("Settings"), theme.SettingsIcon(), mt.onSettingsClicked)
-	mt.settingsDialog = components.NewSettingsDialog(mt.app, mt.window)
+	mt.settingsDialog = components.NewSettingsDialog(mt.app, mt.window, mt.onFFmpegPathChanged)
 
 	// Initialiser les composants pour les onglets (seront créés à la demande)
 	mt.filterResultsList = nil
@@ -444,6 +464,11 @@ func (mt *MediaTools) onUnselectAllClicked() {
 
 func (mt *MediaTools) onSettingsClicked() {
 	mt.settingsDialog.Show()
+}
+
+func (mt *MediaTools) onFFmpegPathChanged(newPath string) {
+	mt.ffmpegService.SetFFmpegPath(newPath)
+	logger.Infof("FFmpeg path updated to: %s", newPath)
 }
 
 // Run démarre l'application

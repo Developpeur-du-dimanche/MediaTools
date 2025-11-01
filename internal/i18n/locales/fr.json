@@ -49,5 +49,11 @@
   "LanguageSelection": "Sélection de la langue",
   "English": "English",
   "French": "Français",
-  "Close": "Fermer"
+  "Close": "Fermer",
+
+  "FFmpegPath": "Chemin de FFmpeg",
+  "FFmpegPathPlaceholder": "Chemin vers l'exécutable ffmpeg (ex: C:\\ffmpeg\\bin\\ffmpeg.exe)",
+  "Browse": "Parcourir",
+  "Save": "Sauvegarder",
+  "FFmpegPathSaved": "Chemin FFmpeg sauvegardé !"
 }
