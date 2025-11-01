@@ -74,14 +74,15 @@ func (mvc *MergeVideosComponent) initUI() {
 				mvc.removeFile(int(id))
 			})
 
-			mi.DisableUpButton()
+			mi.EnableUpButton()
 			mi.DisableDownButton()
-			if id > 0 {
+			if id == 0 {
 				mi.DisableUpButton()
 			}
 			if id < len(mvc.selectedFiles)-1 {
 				mi.EnableDownButton()
 			}
+
 		},
 	)
 
