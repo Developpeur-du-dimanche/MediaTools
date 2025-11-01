@@ -138,8 +138,11 @@ func (cvc *CheckVideosComponent) CreateRenderer() fyne.WidgetRenderer {
 	instructions := widget.NewLabel("Click 'Start Checking' to verify all selected videos for corruption.")
 	instructions.Wrapping = fyne.TextWrapWord
 
-	filesSection := container.NewVBox(
+	filesSection := container.NewBorder(
 		widget.NewLabel("Files to check:"),
+		nil,
+		nil,
+		nil,
 		cvc.filesList,
 	)
 
