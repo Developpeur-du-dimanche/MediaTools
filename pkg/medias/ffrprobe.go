@@ -127,6 +127,7 @@ type streamTags struct {
 	Title        string `json:"title,omitempty"`
 	Encoder      string `json:"encoder,omitempty"`
 	Location     string `json:"location,omitempty"`
+	BPS          string `json:"BPS,string,omitempty"`
 }
 
 func (s *streamTags) setFrom(tags tags) {
@@ -305,6 +306,7 @@ type Video struct {
 	CodecName   string `json:"codec_name"`
 	Width       int    `json:"width"`
 	Height      int    `json:"height"`
+	Bitrate     string `json:"bit_rate,omitempty"`
 }
 
 type Audio struct {
@@ -312,6 +314,7 @@ type Audio struct {
 	CodecName   string `json:"codec_name"`
 	Channels    int    `json:"channels"`
 	Language    string `json:"language"`
+	Bitrate     string `json:"bit_rate,omitempty"`
 }
 
 type Subtitle struct {
@@ -324,7 +327,7 @@ type FfprobeData struct {
 	Filename        string        `json:"filename"`
 	DurationSeconds time.Duration `json:"duration,string"`
 	Size            string        `json:"size"`
-	BitRate         string        `json:"bit_rate"`
+	Bitrate         string        `json:"bit_rate"`
 }
 
 type FfprobeResult struct {
@@ -378,6 +381,18 @@ func (f *Ffprobe) hasJsonOption() bool {
 	return false
 }
 
+func (f *Ffprobe) extractBitrate(stream *stream) string {
+	bitrate := ""
+	if stream.BitRate != "" {
+		bitrate = stream.BitRate
+	} else if b, err := stream.TagList.GetString("BPS"); err == nil {
+		bitrate = b
+	} else {
+		bitrate = "unknown"
+	}
+	return bitrate
+}
+
 func (f *Ffprobe) Probe(ctx context.Context) (*FfprobeResult, error) {
 
 	args := []string{}
@@ -422,7 +437,7 @@ func (f *Ffprobe) Probe(ctx context.Context) (*FfprobeResult, error) {
 			Filename:        data.Format.Filename,
 			DurationSeconds: data.Format.Duration(),
 			Size:            data.Format.Size,
-			BitRate:         data.Format.BitRate,
+			Bitrate:         data.Format.BitRate,
 		},
 		Videos:    make([]Video, len(data.streamType(StreamVideo))),
 		Audios:    make([]Audio, len(data.streamType(StreamAudio))),
@@ -435,15 +450,18 @@ func (f *Ffprobe) Probe(ctx context.Context) (*FfprobeResult, error) {
 			CodecName:   stream.CodecName,
 			Width:       stream.Width,
 			Height:      stream.Height,
+			Bitrate:     f.extractBitrate(&stream),
 		}
 	}
 
 	for i, stream := range data.streamType(StreamAudio) {
+
 		result.Audios[i] = Audio{
 			StreamIndex: stream.Index,
 			CodecName:   stream.CodecName,
 			Channels:    stream.Channels,
 			Language:    stream.tags.Language,
+			Bitrate:     f.extractBitrate(&stream),
 		}
 	}
 

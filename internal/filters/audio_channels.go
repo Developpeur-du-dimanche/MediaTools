@@ -21,8 +21,13 @@ func (f AudioChannelsFilter) Apply(data *medias.FfprobeResult, operator string, 
 	}
 
 	// Compare the channels of the first audio stream
-	actualChannels := int64(data.Audios[0].Channels)
-	return compareNumeric(actualChannels, operator, targetChannels)
+	for _, audio := range data.Audios {
+		actualChannels := int64(audio.Channels)
+		if compareNumeric(actualChannels, operator, targetChannels) {
+			return true
+		}
+	}
+	return false
 }
 
 func (f AudioChannelsFilter) GetFieldConfig() FilterFieldConfig {
