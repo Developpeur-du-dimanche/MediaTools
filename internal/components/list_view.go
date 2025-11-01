@@ -41,6 +41,7 @@ func NewListView(onRefresh func(), window fyne.Window, ffmpegService *services.F
 		currentSize:   0,
 	}
 
+	lv.ExtendBaseWidget(lv)
 	return lv
 }
 
