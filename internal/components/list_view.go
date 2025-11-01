@@ -74,6 +74,7 @@ func (lv *ListView) updateItem(i widget.ListItemID, o fyne.CanvasObject) {
 	}
 
 	root.checkBox.Checked = lv.isSelected[int(i)]
+	root.checkBox.Refresh()
 	root.checkBox.OnChanged = func(checked bool) {
 		lv.isSelected[int(i)] = checked
 	}
@@ -176,10 +177,14 @@ func (lv *ListView) SelectAll() {
 	lv.mutex.Lock()
 	defer lv.mutex.Unlock()
 
-	for i := range lv.items {
+	for i := 0; i < lv.currentSize; i++ {
 		lv.isSelected[i] = true
 	}
 	lv.list.Refresh()
+	// Force update of all visible items
+	for i := 0; i < lv.currentSize; i++ {
+		lv.list.RefreshItem(i)
+	}
 }
 
 func (lv *ListView) UnselectAll() {
@@ -188,4 +193,8 @@ func (lv *ListView) UnselectAll() {
 
 	lv.isSelected = make(map[int]bool)
 	lv.list.Refresh()
+	// Force update of all visible items
+	for i := 0; i < lv.currentSize; i++ {
+		lv.list.RefreshItem(i)
+	}
 }
