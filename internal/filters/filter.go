@@ -63,5 +63,6 @@ func GetAllFilters() []Filter {
 		HasVideoFilter{},
 		HasAudioFilter{},
 		HasSubtitlesFilter{},
+		SubtitleCodecFilter{},
 	}
 }

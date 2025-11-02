@@ -50,6 +50,7 @@ const (
 	FieldHasVideo      FilterField = "HAS_VIDEO"
 	FieldHasAudio      FilterField = "HAS_AUDIO"
 	FieldHasSubtitles  FilterField = "HAS_SUBTITLES"
+	FieldSubtitleCodec FilterField = "SUBTITLE_CODEC"
 )
 
 // FilterCondition represents a single filter condition

@@ -21,10 +21,10 @@ type FilterConditionRow struct {
 	valueSelect    *widget.Select
 	logicalOp      *widget.Select
 	removeButton   *widget.Button
-	groupButton    *widget.Button      // "🔗 Group" / "➖ Ungroup"
-	isGroupStart   bool                // true if this is the start of a group
-	isInGroup      bool                // true if this condition is part of a group
-	groupContainer *fyne.Container     // Container with border for the group (only for group start)
+	addChildButton *widget.Button        // "➕" to add a child filter
+	level          int                   // indentation level (0 = root, 1 = child)
+	parentRow      *FilterConditionRow   // reference to parent row (nil if root)
+	children       []*FilterConditionRow // list of child rows
 }
 
 // FilterBar represents the visual filter builder component
@@ -222,13 +222,23 @@ func (fb *FilterBar) addCondition() {
 	})
 	row.removeButton.Importance = widget.DangerImportance
 
-	// Group button - will be created later to access fb
-	row.groupButton = widget.NewButton("🔗 Group", func() {
-		fb.toggleGroup(row)
+	// Add child button - initially visible, hidden when row becomes a parent
+	row.addChildButton = widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
+		fb.addChildCondition(row)
 	})
+
+	// Initialize hierarchy fields
+	row.level = 0
+	row.parentRow = nil
+	row.children = make([]*FilterConditionRow, 0)
 
 	// Build the row container with better styling
 	var rowContent *fyne.Container
+
+	// Calculate indentation based on level
+	indentPixels := row.level * 50
+
+	indentLabel := widget.NewLabel(strings.Repeat("    ", row.level))
 
 	if len(fb.conditions) > 0 {
 		rowContent = container.NewVBox(
@@ -244,8 +254,8 @@ func (fb *FilterBar) addCondition() {
 			),
 			container.NewBorder(
 				nil, nil,
-				widget.NewLabel("  Where"),
-				container.NewHBox(row.groupButton, row.removeButton),
+				container.NewHBox(indentLabel, widget.NewLabel("Where")),
+				container.NewHBox(row.addChildButton, row.removeButton),
 				container.NewHBox(
 					container.NewGridWithColumns(3,
 						row.fieldSelect,
@@ -260,8 +270,8 @@ func (fb *FilterBar) addCondition() {
 		row.logicalOp.Hide()
 		rowContent = container.NewBorder(
 			nil, nil,
-			widget.NewLabel("  Where"),
-			container.NewHBox(row.groupButton, row.removeButton),
+			container.NewHBox(indentLabel, widget.NewLabel("Where")),
+			container.NewHBox(row.addChildButton, row.removeButton),
 			container.NewHBox(
 				container.NewGridWithColumns(3,
 					row.fieldSelect,
@@ -272,17 +282,37 @@ func (fb *FilterBar) addCondition() {
 		)
 	}
 
+	// Prevent unused variable warning
+	_ = indentPixels
+
 	row.container = rowContent
 	fb.conditions = append(fb.conditions, row)
 }
 
-// removeCondition removes a filter condition row
+// removeCondition removes a filter condition row and its children
 func (fb *FilterBar) removeCondition(row *FilterConditionRow) {
-	// If removing a grouped condition, ungroup first
-	if row.isGroupStart || row.isInGroup {
-		fb.ungroupConditions(row)
+	// Remove all children first
+	for _, child := range row.children {
+		fb.removeCondition(child)
 	}
 
+	// Remove from parent's children list if this row has a parent
+	if row.parentRow != nil {
+		newChildren := make([]*FilterConditionRow, 0)
+		for _, child := range row.parentRow.children {
+			if child != row {
+				newChildren = append(newChildren, child)
+			}
+		}
+		row.parentRow.children = newChildren
+
+		// If parent has no more children, show the add child button again
+		if len(row.parentRow.children) == 0 {
+			row.parentRow.addChildButton.Show()
+		}
+	}
+
+	// Remove from main conditions list
 	newConditions := make([]*FilterConditionRow, 0)
 	for _, c := range fb.conditions {
 		if c != row {
@@ -295,96 +325,155 @@ func (fb *FilterBar) removeCondition(row *FilterConditionRow) {
 	if len(fb.conditions) > 0 {
 		fb.conditions[0].logicalOp.Hide()
 	}
-
-	// Refresh dialog if it's open
-	if fb.filterDialog != nil {
-		// This will be handled by the refresh in the dialog
-	}
 }
 
-// toggleGroup toggles the grouping state of a condition
-func (fb *FilterBar) toggleGroup(row *FilterConditionRow) {
-	if row.isGroupStart {
-		// Already grouped, so ungroup
-		fb.ungroupConditions(row)
-	} else {
-		// Not grouped, so create a group with next condition
-		fb.groupWithNext(row)
-	}
-}
-
-// groupWithNext creates a group starting from this condition
-func (fb *FilterBar) groupWithNext(row *FilterConditionRow) {
-	// Find the index of this row
-	rowIndex := -1
-	for i, c := range fb.conditions {
-		if c == row {
-			rowIndex = i
-			break
-		}
-	}
-
-	// Can't group if this is the last condition
-	if rowIndex == -1 || rowIndex >= len(fb.conditions)-1 {
+// addChildCondition adds a child filter to the given parent row
+func (fb *FilterBar) addChildCondition(parentRow *FilterConditionRow) {
+	// Only allow one level of children (no infinite nesting)
+	if parentRow.level > 0 {
 		return
 	}
 
-	// Mark this row as group start
-	row.isGroupStart = true
-	row.isInGroup = true
-	row.groupButton.SetText("➖ Ungroup")
+	// Create a new condition row
+	childRow := &FilterConditionRow{}
 
-	// Mark next row as in group
-	nextRow := fb.conditions[rowIndex+1]
-	nextRow.isInGroup = true
-	nextRow.groupButton.SetText("➖ Ungroup")
+	// Get all available filters
+	allFilters := getFilterFieldConfigs()
 
-	// Refresh the dialog to show visual grouping
-	fb.refreshDialog()
-}
+	// Create display options for the select widget
+	displayOptions := make([]string, len(allFilters))
+	for i, config := range allFilters {
+		displayOptions[i] = config.GetFieldConfig().DisplayName
+	}
 
-// ungroupConditions removes grouping from a condition and its group
-func (fb *FilterBar) ungroupConditions(row *FilterConditionRow) {
-	// Find the start of the group
-	startIndex := -1
-	for i, c := range fb.conditions {
-		if c == row || (c.isGroupStart && row.isInGroup) {
-			if c.isGroupStart {
-				startIndex = i
+	// Field selector with display names
+	childRow.fieldSelect = widget.NewSelect(displayOptions, func(selected string) {
+		// Find actual field config from display name
+		var fieldConfig filters.Filter
+		for i := range allFilters {
+			if allFilters[i].GetFieldConfig().DisplayName == selected {
+				fieldConfig = allFilters[i]
 				break
 			}
 		}
-		if c == row && c.isGroupStart {
-			startIndex = i
+		if fieldConfig != nil {
+			fb.updateOperatorsForField(childRow, fieldConfig)
+			fb.updateValueInputForField(childRow, fieldConfig)
+		}
+	})
+	childRow.fieldSelect.PlaceHolder = "Select field..."
+
+	// Operator selector
+	childRow.operatorSelect = widget.NewSelect([]string{}, nil)
+	childRow.operatorSelect.PlaceHolder = "Operator..."
+
+	// Value input (Entry by default)
+	childRow.valueEntry = widget.NewEntry()
+	childRow.valueEntry.PlaceHolder = "Value..."
+
+	// Value selector (for predefined values)
+	childRow.valueSelect = widget.NewSelect([]string{}, nil)
+	childRow.valueSelect.PlaceHolder = "Select value..."
+	childRow.valueSelect.Hide()
+
+	// Logical operator (AND/OR)
+	childRow.logicalOp = widget.NewSelect([]string{"AND", "OR"}, nil)
+	childRow.logicalOp.Selected = "AND"
+
+	// Remove button
+	childRow.removeButton = widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
+		fb.removeCondition(childRow)
+	})
+	childRow.removeButton.Importance = widget.DangerImportance
+
+	// Add child button - child rows can also have children (siblings)
+	childRow.addChildButton = widget.NewButton("➕", func() {
+		fb.addSiblingCondition(childRow)
+	})
+
+	// Set hierarchy: child is level 1, parent is level 0
+	childRow.level = parentRow.level + 1
+	childRow.parentRow = parentRow
+	childRow.children = make([]*FilterConditionRow, 0)
+
+	// Calculate indentation
+	indentLabel := widget.NewLabel(strings.Repeat("    ", childRow.level))
+
+	// Build child row container with indentation
+	childRowContent := container.NewVBox(
+		widget.NewSeparator(),
+		container.NewBorder(
+			nil, nil,
+			container.NewHBox(
+				widget.NewLabel("  "),
+				childRow.logicalOp,
+			),
+			nil,
+			widget.NewLabel(""),
+		),
+		container.NewBorder(
+			nil, nil,
+			container.NewHBox(indentLabel, widget.NewLabel("Where")),
+			container.NewHBox(childRow.addChildButton, childRow.removeButton),
+			container.NewHBox(
+				container.NewGridWithColumns(3,
+					childRow.fieldSelect,
+					childRow.operatorSelect,
+					container.NewStack(childRow.valueEntry, childRow.valueSelect),
+				),
+			),
+		),
+	)
+
+	childRow.container = childRowContent
+
+	// Find parent index and insert child after parent
+	parentIndex := -1
+	for i, c := range fb.conditions {
+		if c == parentRow {
+			parentIndex = i
 			break
 		}
 	}
 
-	if startIndex == -1 {
-		return
-	}
+	if parentIndex != -1 {
+		// Insert child after parent (or after last existing child)
+		insertIndex := parentIndex + 1 + len(parentRow.children)
 
-	// Unmark all conditions in the group
-	for i := startIndex; i < len(fb.conditions); i++ {
-		if fb.conditions[i].isInGroup {
-			fb.conditions[i].isInGroup = false
-			fb.conditions[i].isGroupStart = false
-			fb.conditions[i].groupButton.SetText("🔗 Group")
-		} else if i > startIndex {
-			break
-		}
-	}
+		// Insert into conditions slice
+		newConditions := make([]*FilterConditionRow, 0, len(fb.conditions)+1)
+		newConditions = append(newConditions, fb.conditions[:insertIndex]...)
+		newConditions = append(newConditions, childRow)
+		newConditions = append(newConditions, fb.conditions[insertIndex:]...)
+		fb.conditions = newConditions
 
-	// Refresh the dialog
-	fb.refreshDialog()
+		// Add to parent's children list
+		parentRow.children = append(parentRow.children, childRow)
+
+		// Hide parent's add child button once it has children
+		parentRow.addChildButton.Hide()
+
+		// Refresh dialog
+		fb.refreshDialog()
+	}
+}
+
+// addSiblingCondition adds a sibling to the given child row (another child of the same parent)
+func (fb *FilterBar) addSiblingCondition(siblingRow *FilterConditionRow) {
+	if siblingRow.parentRow != nil {
+		fb.addChildCondition(siblingRow.parentRow)
+	}
 }
 
 // refreshDialog refreshes the filter dialog content
 func (fb *FilterBar) refreshDialog() {
 	if fb.filterDialog != nil {
-		// Trigger a refresh by hiding and showing
-		// This is a simple approach - in a real app you might want to rebuild the content
-		fb.filterDialog.Refresh()
+		// Rebuild the dialog content
+		content := fb.createDialogContent()
+		fb.filterDialog.Hide()
+		fb.filterDialog = dialog.NewCustom("Configure Filters", "Close", content, fb.window)
+		fb.filterDialog.Resize(fyne.NewSize(900, 600))
+		fb.filterDialog.Show()
 	}
 }
 
@@ -429,115 +518,88 @@ func (fb *FilterBar) buildFilterString() string {
 
 	parts := make([]string, 0)
 	allFilters := getFilterFieldConfigs()
-	i := 0
 
-	for i < len(fb.conditions) {
-		row := fb.conditions[i]
+	// Process only root-level conditions (children will be processed within their parents)
+	for i, row := range fb.conditions {
+		// Skip child rows - they'll be processed with their parent
+		if row.parentRow != nil {
+			continue
+		}
 
-		// Check if this is the start of a group
-		if row.isGroupStart {
-			// Build the grouped conditions
+		// Add logical operator before this condition (if not first root element)
+		if len(parts) > 0 {
+			logicalOp := row.logicalOp.Selected
+			if logicalOp == "" {
+				logicalOp = "AND"
+			}
+			parts = append(parts, logicalOp)
+		}
+
+		// Build this condition
+		conditionStr := fb.buildConditionString(row, allFilters)
+		if conditionStr == "" {
+			continue // Skip incomplete conditions
+		}
+
+		// If this row has children, wrap it and its children in parentheses
+		if len(row.children) > 0 {
 			groupParts := make([]string, 0)
+			groupParts = append(groupParts, conditionStr)
 
-			for i < len(fb.conditions) && fb.conditions[i].isInGroup {
-				groupRow := fb.conditions[i]
-
-				// Get field key from display name
-				var fieldKey string
-				for _, config := range allFilters {
-					if config.GetFieldConfig().DisplayName == groupRow.fieldSelect.Selected {
-						fieldKey = config.GetFieldConfig().Key
-						break
-					}
-				}
-
-				operator := groupRow.operatorSelect.Selected
-				var value string
-
-				if groupRow.valueSelect.Visible() {
-					value = groupRow.valueSelect.Selected
-				} else {
-					value = groupRow.valueEntry.Text
-				}
-
-				// Skip incomplete conditions
-				if fieldKey == "" || operator == "" || value == "" {
-					i++
-					continue
-				}
-
-				condition := fmt.Sprintf("%s %s %s", fieldKey, operator, value)
-				groupParts = append(groupParts, condition)
-
-				// Add logical operator within the group (if not the last in group)
-				if i+1 < len(fb.conditions) && fb.conditions[i+1].isInGroup {
-					logicalOp := fb.conditions[i+1].logicalOp.Selected
+			// Add all children
+			for _, child := range row.children {
+				childConditionStr := fb.buildConditionString(child, allFilters)
+				if childConditionStr != "" {
+					// Add logical operator before child
+					logicalOp := child.logicalOp.Selected
 					if logicalOp == "" {
 						logicalOp = "AND"
 					}
 					groupParts = append(groupParts, logicalOp)
+					groupParts = append(groupParts, childConditionStr)
 				}
-
-				i++
 			}
 
-			// Add the group as a parenthesized expression
-			if len(groupParts) > 0 {
-				groupStr := "(" + strings.Join(groupParts, " ") + ")"
-
-				// Add logical operator before the group (if not first element)
-				if len(parts) > 0 && i > 0 {
-					logicalOp := fb.conditions[i-len(groupParts)].logicalOp.Selected
-					if logicalOp == "" {
-						logicalOp = "AND"
-					}
-					parts = append(parts, logicalOp)
-				}
-
-				parts = append(parts, groupStr)
-			}
+			// Wrap in parentheses
+			parts = append(parts, "("+strings.Join(groupParts, " ")+")")
 		} else {
-			// Regular non-grouped condition
-			var fieldKey string
-			for _, config := range allFilters {
-				if config.GetFieldConfig().DisplayName == row.fieldSelect.Selected {
-					fieldKey = config.GetFieldConfig().Key
-					break
-				}
-			}
-
-			operator := row.operatorSelect.Selected
-			var value string
-
-			if row.valueSelect.Visible() {
-				value = row.valueSelect.Selected
-			} else {
-				value = row.valueEntry.Text
-			}
-
-			// Skip incomplete conditions
-			if fieldKey == "" || operator == "" || value == "" {
-				i++
-				continue
-			}
-
-			condition := fmt.Sprintf("%s %s %s", fieldKey, operator, value)
-
-			// Add logical operator (if not first element)
-			if len(parts) > 0 && i > 0 {
-				logicalOp := row.logicalOp.Selected
-				if logicalOp == "" {
-					logicalOp = "AND"
-				}
-				parts = append(parts, logicalOp)
-			}
-
-			parts = append(parts, condition)
-			i++
+			// No children, just add the condition
+			parts = append(parts, conditionStr)
 		}
+
+		// Avoid unused variable warning
+		_ = i
 	}
 
 	return strings.Join(parts, " ")
+}
+
+// buildConditionString builds a single condition string from a row
+func (fb *FilterBar) buildConditionString(row *FilterConditionRow, allFilters []filters.Filter) string {
+	// Get field key from display name
+	var fieldKey string
+	for _, config := range allFilters {
+		if config.GetFieldConfig().DisplayName == row.fieldSelect.Selected {
+			fieldKey = config.GetFieldConfig().Key
+			break
+		}
+	}
+
+	operator := row.operatorSelect.Selected
+	var value string
+
+	if row.valueSelect.Visible() {
+		value = row.valueSelect.Selected
+	} else {
+		value = row.valueEntry.Text
+	}
+
+	// Return empty string if incomplete
+	if fieldKey == "" || operator == "" || value == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s %s %s", fieldKey, operator, value)
 }
 
 // applyFilters applies the current filter configuration
