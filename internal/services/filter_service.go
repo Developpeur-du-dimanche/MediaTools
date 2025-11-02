@@ -515,6 +515,31 @@ func (fs *FilterService) FilterMediaList(mediaList []*medias.FfprobeResult, filt
 		return mediaList, nil
 	}
 
+	for exprIdx, elem := range expr.Elements {
+		if elem.IsGroup {
+
+			firstField := elem.Group.Conditions[0].Field
+
+			// Get the filter to determine target type
+			filter, exists := fs.filterRegistry[firstField]
+			if !exists {
+				logger.Warnf("Unknown filter field: %s", firstField)
+				return nil, fmt.Errorf("unknown filter field: %s", firstField)
+			}
+
+			for _, cond := range elem.Group.Conditions {
+				// Validate each condition's field
+				if _, exists := fs.filterRegistry[cond.Field]; exists {
+					if filter.GetFieldConfig().TargetType != fs.filterRegistry[cond.Field].GetFieldConfig().TargetType {
+						return nil, fmt.Errorf("mixed target types in group at element %d", exprIdx)
+					}
+				} else {
+					return nil, fmt.Errorf("unknown filter field: %s", cond.Field)
+				}
+			}
+		}
+	}
+
 	filtered := make([]*medias.FfprobeResult, 0)
 	for _, media := range mediaList {
 		if fs.ApplyFilter(media, expr) {
