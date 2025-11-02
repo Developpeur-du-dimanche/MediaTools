@@ -36,5 +36,6 @@ func (f AudioChannelsFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName: "Audio Channels",
 		Type:        FieldTypeNumeric,
 		Placeholder: "e.g., 6",
+		TargetType: TargetAudio,
 	}
 }

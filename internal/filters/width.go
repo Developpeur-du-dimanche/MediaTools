@@ -31,5 +31,6 @@ func (f WidthFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName: "Width (px)",
 		Type:        FieldTypeNumeric,
 		Placeholder: "e.g., 1920",
+		TargetType: TargetVideo,
 	}
 }

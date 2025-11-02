@@ -30,5 +30,6 @@ func (f AudioBitrateFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName: "Bitrate (Audio)",
 		Type:        FieldTypeNumeric,
 		Placeholder: "e.g., 320kbps",
+		TargetType: TargetAudio,
 	}
 }

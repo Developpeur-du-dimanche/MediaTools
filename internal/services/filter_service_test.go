@@ -18,7 +18,7 @@ func TestGroupedFilters(t *testing.T) {
 			Filename:        "test.mkv",
 			DurationSeconds: time.Duration(3600 * time.Second),
 			Size:            "1000000",
-			BitRate:         "2000000",
+			Bitrate:         "2000000",
 		},
 		Videos: []medias.Video{
 			{StreamIndex: 0, CodecName: "h264", Width: 1920, Height: 1080},

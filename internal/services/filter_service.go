@@ -35,21 +35,21 @@ const (
 type FilterField string
 
 const (
-	FieldBitrate        FilterField = "BITRATE"
-	FieldVideoBitrate   FilterField = "VIDEO_BITRATE"
-	FieldAudioBitrate   FilterField = "AUDIO_BITRATE"
-	FieldVideoCodec     FilterField = "VIDEO_CODEC"
-	FieldAudioCodec     FilterField = "AUDIO_CODEC"
-	FieldAudioLanguage  FilterField = "AUDIO_LANGUAGE"
-	FieldSubLanguage    FilterField = "SUBTITLE_LANGUAGE"
-	FieldWidth          FilterField = "WIDTH"
-	FieldHeight         FilterField = "HEIGHT"
-	FieldDuration       FilterField = "DURATION"
-	FieldFramerate      FilterField = "FRAMERATE"
-	FieldAudioChannels  FilterField = "AUDIO_CHANNELS"
-	FieldHasVideo       FilterField = "HAS_VIDEO"
-	FieldHasAudio       FilterField = "HAS_AUDIO"
-	FieldHasSubtitles   FilterField = "HAS_SUBTITLES"
+	FieldBitrate       FilterField = "BITRATE"
+	FieldVideoBitrate  FilterField = "VIDEO_BITRATE"
+	FieldAudioBitrate  FilterField = "AUDIO_BITRATE"
+	FieldVideoCodec    FilterField = "VIDEO_CODEC"
+	FieldAudioCodec    FilterField = "AUDIO_CODEC"
+	FieldAudioLanguage FilterField = "AUDIO_LANGUAGE"
+	FieldSubLanguage   FilterField = "SUBTITLE_LANGUAGE"
+	FieldWidth         FilterField = "WIDTH"
+	FieldHeight        FilterField = "HEIGHT"
+	FieldDuration      FilterField = "DURATION"
+	FieldFramerate     FilterField = "FRAMERATE"
+	FieldAudioChannels FilterField = "AUDIO_CHANNELS"
+	FieldHasVideo      FilterField = "HAS_VIDEO"
+	FieldHasAudio      FilterField = "HAS_AUDIO"
+	FieldHasSubtitles  FilterField = "HAS_SUBTITLES"
 )
 
 // FilterCondition represents a single filter condition
@@ -371,16 +371,23 @@ func (fs *FilterService) evaluateGroup(media *medias.FfprobeResult, group *Filte
 	// All conditions in a group should target the same stream type
 	firstField := group.Conditions[0].Field
 
-	switch firstField {
-	case FieldAudioCodec, FieldAudioLanguage, FieldAudioChannels, FieldAudioBitrate:
+	// Get the filter to determine target type
+	filter, exists := fs.filterRegistry[firstField]
+	if !exists {
+		logger.Warnf("Unknown filter field: %s", firstField)
+		return false
+	}
+
+	switch filter.GetFieldConfig().TargetType {
+	case filters.TargetVideo:
 		// Check if at least one audio stream satisfies all conditions
 		return fs.evaluateGroupOnAudioStreams(media, group)
 
-	case FieldVideoCodec, FieldWidth, FieldHeight, FieldVideoBitrate:
+	case filters.TargetAudio:
 		// Check if at least one video stream satisfies all conditions
 		return fs.evaluateGroupOnVideoStreams(media, group)
 
-	case FieldSubLanguage:
+	case filters.TargetSubtitle:
 		// Check if at least one subtitle stream satisfies all conditions
 		return fs.evaluateGroupOnSubtitleStreams(media, group)
 

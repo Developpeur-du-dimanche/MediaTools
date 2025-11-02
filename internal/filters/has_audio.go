@@ -16,5 +16,6 @@ func (f HasAudioFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName:      "Has Audio Stream",
 		Type:             FieldTypeBoolean,
 		PredefinedValues: []string{"true", "false"},
+		TargetType:      TargetFile,
 	}
 }

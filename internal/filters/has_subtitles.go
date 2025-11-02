@@ -16,5 +16,6 @@ func (f HasSubtitlesFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName:      "Has Subtitles",
 		Type:             FieldTypeBoolean,
 		PredefinedValues: []string{"true", "false"},
+		TargetType:      TargetFile,
 	}
 }

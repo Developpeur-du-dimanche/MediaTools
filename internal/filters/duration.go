@@ -26,5 +26,6 @@ func (f DurationFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName: "Duration (seconds)",
 		Type:        FieldTypeNumeric,
 		Placeholder: "e.g., 3600 (seconds)",
+		TargetType: TargetFile,
 	}
 }

@@ -16,5 +16,6 @@ func (f HasVideoFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName:      "Has Video Stream",
 		Type:             FieldTypeBoolean,
 		PredefinedValues: []string{"true", "false"},
+		TargetType:      TargetFile,
 	}
 }

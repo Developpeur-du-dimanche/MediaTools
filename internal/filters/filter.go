@@ -13,6 +13,16 @@ const (
 	FieldTypeBoolean FilterFieldType = "boolean"
 )
 
+type FilterTargetType string
+
+const (
+	TargetVideo    FilterTargetType = "video"
+	TargetAudio    FilterTargetType = "audio"
+	TargetSubtitle FilterTargetType = "subtitle"
+	TargetAttachment	FilterTargetType = "attachment"
+	TargetFile	FilterTargetType = "file"
+)
+
 // FilterFieldConfig defines all properties of a filter field
 type FilterFieldConfig struct {
 	Key              string          // Internal field key (e.g., "VIDEO_CODEC")
@@ -20,6 +30,7 @@ type FilterFieldConfig struct {
 	Type             FilterFieldType // Field data type
 	PredefinedValues []string        // Optional list of predefined values for dropdown
 	Placeholder      string          // Placeholder text for manual entry
+	TargetType      FilterTargetType // Target type of the filter (video, audio, subtitle, other)
 }
 
 // Operator definitions per field type

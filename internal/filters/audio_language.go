@@ -26,5 +26,6 @@ func (f AudioLanguageFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName:      "Audio Language",
 		Type:             FieldTypeString,
 		PredefinedValues: []string{"fre", "eng", "spa", "deu", "ita", "jpn", "kor", "chi", "por", "rus", "ara", "hin"},
+		TargetType:      TargetAudio,
 	}
 }

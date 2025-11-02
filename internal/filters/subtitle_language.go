@@ -26,5 +26,6 @@ func (f SubtitleLanguageFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName:      "Subtitle Language",
 		Type:             FieldTypeString,
 		PredefinedValues: []string{"fre", "eng", "spa", "deu", "ita", "jpn", "kor", "chi", "por", "rus", "ara", "hin"},
+		TargetType:      TargetSubtitle,
 	}
 }

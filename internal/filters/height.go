@@ -31,5 +31,6 @@ func (f HeightFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName: "Height (px)",
 		Type:        FieldTypeNumeric,
 		Placeholder: "e.g., 1080",
+		TargetType: TargetVideo,
 	}
 }

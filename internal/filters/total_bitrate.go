@@ -28,5 +28,6 @@ func (f TotalBitrateFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName: "Bitrate (Total)",
 		Type:        FieldTypeNumeric,
 		Placeholder: "e.g., 2000kbps or 2mbps",
+		TargetType: TargetFile,
 	}
 }

@@ -16,5 +16,6 @@ func (f FramerateFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName: "Framerate (fps)",
 		Type:        FieldTypeNumeric,
 		Placeholder: "e.g., 30",
+		TargetType: TargetVideo,
 	}
 }

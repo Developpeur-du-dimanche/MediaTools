@@ -20,5 +20,6 @@ func (f VideoCodecFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName:      "Video Codec",
 		Type:             FieldTypeString,
 		PredefinedValues: []string{"h264", "h265", "hevc", "vp9", "av1", "mpeg4", "mpeg2video", "xvid"},
+		TargetType:      TargetVideo,
 	}
 }

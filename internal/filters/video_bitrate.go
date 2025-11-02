@@ -16,5 +16,6 @@ func (f VideoBitrateFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName: "Bitrate (Video)",
 		Type:        FieldTypeNumeric,
 		Placeholder: "e.g., 1500kbps",
+		TargetType: TargetVideo,
 	}
 }

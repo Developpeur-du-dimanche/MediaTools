@@ -26,5 +26,6 @@ func (f AudioCodecFilter) GetFieldConfig() FilterFieldConfig {
 		DisplayName:      "Audio Codec",
 		Type:             FieldTypeString,
 		PredefinedValues: []string{"aac", "mp3", "ac3", "eac3", "dts", "flac", "opus", "vorbis", "pcm"},
+		TargetType:      TargetAudio,
 	}
 }
