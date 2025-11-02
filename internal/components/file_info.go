@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"math"
 	"path/filepath"
 	"strconv"
 
@@ -28,6 +29,8 @@ func NewFileInfoComponent(file *medias.FfprobeResult, window fyne.Window) *FileI
 	return fic
 }
 
+var units = []string{"bps", "Kbps", "Mbps", "Gbps", "Tbps"}
+
 func (fic *FileInfoComponent) CreateRenderer() fyne.WidgetRenderer {
 	// File header info with better formatting
 	filename := filepath.Base(fic.file.Format.Filename)
@@ -35,7 +38,7 @@ func (fic *FileInfoComponent) CreateRenderer() fyne.WidgetRenderer {
 
 	duration := fic.file.Format.DurationSeconds.String()
 	size := formatSizeString(fic.file.Format.Size)
-	bitrate := formatBitrateString(fic.file.Format.BitRate)
+	bitrate := formatBitrateString(fic.file.Format.Bitrate)
 
 	// File info section with grid layout
 	fileInfoGrid := container.NewVBox(
@@ -117,9 +120,21 @@ func formatBitrateString(bitrateStr string) string {
 	}
 
 	if bitrate == 0 {
-		return "N/A"
+		return "0 b"
 	}
-	return fmt.Sprintf("%.2f Mbps", float64(bitrate)/1000000)
+
+	i := 0
+	value := float64(bitrate)
+
+	for value >= 1000 && i < len(units)-1 {
+		value /= 1000
+		i++
+	}
+
+	if i > 0 {
+		value = float64(bitrate) / math.Pow(1000, float64(i))
+	}
+	return fmt.Sprintf("%.2f %s", value, units[i])
 }
 
 func (fic *FileInfoComponent) createVideoTabs() *container.AppTabs {
@@ -131,6 +146,7 @@ func (fic *FileInfoComponent) createVideoTabs() *container.AppTabs {
 			widget.NewSeparator(),
 			fic.createInfoRow("Codec:", stream.CodecName),
 			fic.createInfoRow("Resolution:", fmt.Sprintf("%dx%d", stream.Width, stream.Height)),
+			fic.createInfoRow("Bitrate:", formatBitrateString(stream.Bitrate)),
 		)
 
 		videoAppTab := container.NewTabItem(fmt.Sprintf("Stream #%d", stream.StreamIndex), streamInfo)
@@ -155,6 +171,7 @@ func (fic *FileInfoComponent) createAudioTabs() *container.AppTabs {
 			fic.createInfoRow("Codec:", stream.CodecName),
 			fic.createInfoRow("Channels:", fmt.Sprintf("%d", stream.Channels)),
 			fic.createInfoRow("Language:", language),
+			fic.createInfoRow("Bitrate", formatBitrateString(stream.Bitrate)),
 		)
 
 		audioAppTab := container.NewTabItem(fmt.Sprintf("Stream #%d", stream.StreamIndex), streamInfo)

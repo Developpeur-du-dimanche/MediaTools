@@ -9,7 +9,7 @@ import (
 type TotalBitrateFilter struct{}
 
 func (f TotalBitrateFilter) Apply(data *medias.FfprobeResult, operator string, value string) bool {
-	actualBitrate, err := strconv.ParseInt(data.Format.BitRate, 10, 64)
+	actualBitrate, err := strconv.ParseInt(data.Format.Bitrate, 10, 64)
 	if err != nil {
 		return false
 	}

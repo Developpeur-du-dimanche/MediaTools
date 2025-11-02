@@ -19,11 +19,31 @@ type FFmpegService struct {
 	ffmpegPath string
 }
 
+func (fs *FFmpegService) LocateFFmpeg() (string, error) {
+	path, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
 // NewFFmpegService creates a new FFmpeg service
 func NewFFmpegService() *FFmpegService {
 	return &FFmpegService{
 		ffmpegPath: "ffmpeg", // Assume ffmpeg is in PATH
 	}
+}
+
+// SetFFmpegPath sets a custom path for ffmpeg executable
+func (fs *FFmpegService) SetFFmpegPath(path string) {
+	if path != "" {
+		fs.ffmpegPath = path
+	}
+}
+
+// GetFFmpegPath returns the current ffmpeg path
+func (fs *FFmpegService) GetFFmpegPath() string {
+	return fs.ffmpegPath
 }
 
 // ProgressCallback is called during FFmpeg operations

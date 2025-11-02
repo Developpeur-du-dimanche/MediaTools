@@ -5,8 +5,22 @@ import "github.com/Developpeur-du-dimanche/MediaTools/pkg/medias"
 type AudioBitrateFilter struct{}
 
 func (f AudioBitrateFilter) Apply(data *medias.FfprobeResult, operator string, value string) bool {
-	// Audio bitrate is not available in the FfprobeResult struct
-	// The struct only contains codec information, not bitrate per stream
+	if len(data.Audios) == 0 {
+		return false
+	}
+
+	for _, audio := range data.Audios {
+		actualBitrate := parseBitrateValue(audio.Bitrate)
+
+		targetBitrate := parseBitrateValue(value)
+		if targetBitrate == 0 {
+			continue
+		}
+
+		if compareNumeric(actualBitrate, operator, targetBitrate) {
+			return true
+		}
+	}
 	return false
 }
 

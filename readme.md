@@ -1,55 +1,117 @@
 # MediaTools
 
-MediaTools est une collection d'outils pour manipuler des médias (vidéos uniquement).
+A powerful GUI application for managing and manipulating video files with advanced filtering, merging, and stream management capabilities.
 
-## IMPORTANT
+![License](https://img.shields.io/github/license/Developpeur-du-dimanche/MediaTools)
+![Go Version](https://img.shields.io/github/go-mod/go-version/Developpeur-du-dimanche/MediaTools)
+![Release](https://img.shields.io/github/v/release/Developpeur-du-dimanche/MediaTools)
 
-A la création d'une issue, merci d'attribuer l'issue a la personne qui s'occupera de la résoudre. Sinon aucune notification ne sera envoyée à la personne concernée (et donc personne ne sera prévenu).
+## Features
 
-## Release
+- **Bulk Video Scanning**: Recursively scan folders to analyze video files
+- **Advanced Filtering**: Filter videos by codec, bitrate, resolution, duration, language, and more
+- **Video Merging**: Merge multiple videos into a single file
+- **Stream Management**: Remove or keep specific audio, video, or subtitle streams
+- **Video Integrity Check**: Verify video file integrity
+- **FFmpeg Integration**: Leverages FFmpeg for all media operations
+- **Localization**: Supports multiple languages (English, French)
+- **Cross-Platform**: Works on Windows, macOS, and Linux
 
-Vous pouvez télécharger la dernière version de MediaTools sur la page des [releases](https://github.com/Developpeur-du-dimanche/MediaTools/releases)
+## Download
 
-## Installation
+Download the latest version from the [releases page](https://github.com/Developpeur-du-dimanche/MediaTools/releases).
 
+## Installation from Source
 
-### Prérequis
+### Prerequisites
 
-Avoir GO installé sur votre machine. Pour l'installer, suivez les instructions sur le site officiel: https://golang.org/doc/install
+- **Go 1.19+**: Install from [golang.org](https://golang.org/doc/install)
+- **FFmpeg**: Required for media operations
+  - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+  - macOS: `brew install ffmpeg`
+  - Linux: `sudo apt install ffmpeg` (Ubuntu/Debian) or equivalent
 
-Installation des dépendances:
+### Build
+
+1. Clone the repository:
 ```bash
-go get
+git clone https://github.com/Developpeur-du-dimanche/MediaTools.git
+cd MediaTools
 ```
 
-### Compilation
-
-Pour compiler le projet, exécutez la commande suivante:
+2. Install dependencies:
 ```bash
-go build -o ./main.exe ./cmd/mediatools/main.go
+go mod download
 ```
 
-Cela peut etre long, car le projet doit compiler les dépendances pour l'interface graphique. Il faut donc patienter.
-
-### Exécution
-
-Pour exécuter le programme, exécutez la commande suivante:
+3. Build the application:
 ```bash
-./main.exe
+# Windows
+go build -o mediatools.exe ./cmd/mediatools/main.go
+
+# macOS/Linux
+go build -o mediatools ./cmd/mediatools/main.go
 ```
 
-### Air (optionnel, pour le développement principalement)
+**Note**: The first build may take several minutes as it compiles the GUI dependencies.
 
-Air permet de recharger automatiquement le programme lorsqu'un fichier est modifié. Cela permet de gagner du temps lors du développement.
+### Run
 
-#### Installation
+```bash
+# Windows
+./mediatools.exe
 
-Pour installer Air, exécutez la commande suivante:
+# macOS/Linux
+./mediatools
+```
+
+## Development
+
+### Hot Reload with Air (Optional)
+
+For faster development, use [Air](https://github.com/air-verse/air) to automatically rebuild on file changes.
+
+Install Air:
 ```bash
 go install github.com/air-verse/air@latest
 ```
 
-Pour exécuter le programme avec Air, exécutez la commande suivante:
+Run with Air:
 ```bash
 air
 ```
+
+### Project Structure
+
+```
+MediaTools/
+├── cmd/mediatools/       # Application entry point
+├── internal/
+│   ├── components/       # UI components
+│   ├── filters/          # Filter implementations
+│   ├── mediatools/       # Main application logic
+│   ├── services/         # Business logic services
+│   └── utils/            # Utility functions
+├── pkg/
+│   ├── logger/           # Logging package
+│   └── medias/           # Media handling (ffprobe integration)
+└── readme.md
+```
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. **Issues**: When creating an issue, assign it to the person responsible for resolving it to ensure proper notifications
+2. **Pull Requests**: Ensure your code follows Go conventions and includes appropriate tests
+3. **Localization**: New language translations are appreciated
+
+## License
+
+This project is licensed under the terms specified in the [LICENSE](LICENSE) file.
+
+## Built With
+
+- [Go](https://golang.org/) - Programming language
+- [Fyne](https://fyne.io/) - Cross-platform GUI framework
+- [FFmpeg](https://ffmpeg.org/) - Media processing
