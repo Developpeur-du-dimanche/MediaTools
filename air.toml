@@ -1,5 +1,0 @@
-root = "."
-tmp_dir = "tmp"
-
-[build]
-cmd = "go build -o .\\tmp\\main.exe .\\cmd\\mediatools\\main.go"
